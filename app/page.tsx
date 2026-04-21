@@ -7,6 +7,7 @@ import TrustBar from "@/components/sections/TrustBar";
 import ProductCard from "@/components/product/ProductCard";
 import HeroSection from "@/components/sections/HeroSection";
 import EditorialBanner from "@/components/sections/EditorialBanner";
+import Counter from "@/components/ui/Counter";
 import { PRODUCTS } from "@/lib/products";
 
 export const metadata: Metadata = {
@@ -85,15 +86,15 @@ export default function HomePage() {
           <div className="max-content">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               {[
-                { num: "50+", label: "Countries" },
-                { num: "10M+", label: "Customers" },
-                { num: "30", label: "Years of Innovation" },
-                { num: "#1", label: "Business Laptops" },
-              ].map(({ num, label }) => (
+                { to: 20, suffix: "+", label: "States" },
+                { to: 100, suffix: "K+", label: "Customers" },
+                { to: 10, suffix: "+", label: "Years of Innovation" },
+                { to: 1, prefix: "#", label: "Business Laptops" },
+              ].map(({ label, ...counterProps }) => (
                 <div key={label}>
-                  <p className="font-serif text-5xl md:text-6xl font-light text-hp-white mb-2">
-                    {num}
-                  </p>
+                  <div className="font-serif text-5xl md:text-6xl font-light text-hp-white mb-2">
+                    <Counter {...counterProps} />
+                  </div>
                   <p className="text-[11px] tracking-[0.2em] uppercase text-hp-white/40 font-light">
                     {label}
                   </p>
