@@ -136,7 +136,7 @@ export default function Footer() {
         <div className="pt-8 flex flex-col md:flex-row items-center
                         justify-between gap-4">
           <p className="text-[11px] text-hp-white/30 font-light">
-            © {new Date().getFullYear()} HP Atelier. All rights reserved.
+            © {new Date().getFullYear()} DSK. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
             {["Privacy Policy", "Terms of Use", "Cookie Settings"].map((t) => (

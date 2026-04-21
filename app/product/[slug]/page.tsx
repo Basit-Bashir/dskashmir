@@ -10,10 +10,16 @@ import ProductCard from "@/components/product/ProductCard";
 import { PRODUCTS, getProductBySlug } from "@/lib/products";
 import { formatPrice, BADGE_STYLES, cn } from "@/lib/utils";
 
+import { useCart } from "@/lib/context/CartContext";
+
+import { use } from "react";
+
 // In a real app this would use generateStaticParams + server component
-// For demo we use a client component with hardcoded slug
-export default function ProductPage({ params }: { params: { slug: string } }) {
-  const product = getProductBySlug(params.slug) ?? PRODUCTS[0];
+// For demo we use a client component
+export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+  const product = getProductBySlug(slug) ?? PRODUCTS[0];
+  const { addItem } = useCart();
 
   const [activeImg,    setActiveImg]    = useState(0);
   const [activeColor,  setActiveColor]  = useState(0);
@@ -25,6 +31,14 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   const currentPrice = product.configs[activeConfig]?.price ?? product.price;
 
   const handleAdd = () => {
+    addItem({
+      id: product.id,
+      name: product.name,
+      series: product.series,
+      config: `${product.configs[activeConfig].ram} / ${product.configs[activeConfig].storage} / ${product.colors[activeColor].name}`,
+      price: currentPrice,
+      qty: qty,
+    });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };

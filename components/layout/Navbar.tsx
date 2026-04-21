@@ -12,10 +12,12 @@ const NAV_LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
+import { useCart } from "@/lib/context/CartContext";
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const cartCount = 2; // replace with cart context
+  const { cartCount } = useCart();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);

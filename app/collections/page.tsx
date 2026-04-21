@@ -9,10 +9,11 @@ import { PRODUCTS, getProductsByCategory } from "@/lib/products";
 
 const CATEGORIES = [
   { key: "all",        label: "All" },
-  { key: "ultrabook",  label: "Ultrabook" },
+  { key: "ultrabook",  label: "Laptops" },
   { key: "business",   label: "Business" },
-  { key: "creator",    label: "Creator" },
-  { key: "gaming",     label: "Gaming" },
+  { key: "printer",    label: "Printers" },
+  { key: "copier",     label: "Copiers" },
+  { key: "accessory",  label: "Accessories" },
 ];
 
 const SORT_OPTIONS = [
@@ -26,7 +27,7 @@ const SORT_OPTIONS = [
 export default function CollectionsPage() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [sortBy, setSortBy] = useState("featured");
-  const [priceRange, setPriceRange] = useState([0, 3000]);
+  const [priceRange, setPriceRange] = useState([0, 300000]); // Updated range for INR
 
   const filtered = getProductsByCategory(activeCategory).sort((a, b) => {
     if (sortBy === "price-asc")  return a.price - b.price;
@@ -46,11 +47,11 @@ export default function CollectionsPage() {
               Home &rsaquo; Collections
             </p>
             <h1 className="font-serif text-5xl md:text-6xl font-light text-hp-black">
-              Laptops & Ultrabooks
+              The Collection
             </h1>
             <p className="mt-4 text-sm font-light text-hp-gray max-w-xl leading-relaxed">
-              Curated selection of HP's finest machines — from ultra-portable ultrabooks
-              to powerhouse creator rigs.
+              Curated selection of HP's finest technology — from ultra-portable laptops 
+              to enterprise-grade printing and imaging solutions.
             </p>
           </div>
         </div>

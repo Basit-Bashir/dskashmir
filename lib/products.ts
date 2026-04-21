@@ -8,7 +8,7 @@ export type Product = {
   price: number;
   originalPrice?: number;
   badge?: "New" | "Best Seller" | "Limited" | "Sale";
-  category: "ultrabook" | "business" | "creator" | "gaming" | "desktop" | "accessory";
+  category: "ultrabook" | "business" | "creator" | "gaming" | "desktop" | "accessory" | "printer" | "copier";
   colors: { name: string; hex: string }[];
   configs: { ram: string; storage: string; price: number }[];
   specs: { label: string; value: string }[];
@@ -27,8 +27,8 @@ export const PRODUCTS: Product[] = [
     tagline: "Power Meets Precision",
     description:
       "The ultimate expression of HP craftsmanship. A convertible ultrabook built for those who refuse to compromise — featuring OLED display technology and Intel's latest Core Ultra processor.",
-    price: 1899,
-    originalPrice: 2199,
+    price: 164999,
+    originalPrice: 184999,
     badge: "New",
     category: "ultrabook",
     colors: [
@@ -37,9 +37,9 @@ export const PRODUCTS: Product[] = [
       { name: "Natural Silver",  hex: "#c0c0c0" },
     ],
     configs: [
-      { ram: "16GB", storage: "512GB", price: 1899 },
-      { ram: "16GB", storage: "1TB",   price: 2099 },
-      { ram: "32GB", storage: "1TB",   price: 2399 },
+      { ram: "16GB", storage: "512GB", price: 164999 },
+      { ram: "16GB", storage: "1TB",   price: 179999 },
+      { ram: "32GB", storage: "1TB",   price: 194999 },
     ],
     specs: [
       { label: "Processor",   value: "Intel Core Ultra 7 165H" },
@@ -62,7 +62,7 @@ export const PRODUCTS: Product[] = [
     tagline: "Create Without Limits",
     description:
       "Built for creators who demand more. A powerhouse with dedicated GPU, stunning display, and studio-grade audio in a premium aluminium chassis.",
-    price: 1499,
+    price: 129999,
     badge: "Best Seller",
     category: "creator",
     colors: [
@@ -70,8 +70,8 @@ export const PRODUCTS: Product[] = [
       { name: "Warm Gold",     hex: "#C8A96E" },
     ],
     configs: [
-      { ram: "16GB", storage: "512GB", price: 1499 },
-      { ram: "32GB", storage: "1TB",   price: 1799 },
+      { ram: "16GB", storage: "512GB", price: 129999 },
+      { ram: "32GB", storage: "1TB",   price: 149999 },
     ],
     specs: [
       { label: "Processor",   value: "Intel Core i9-13900H" },
@@ -94,7 +94,7 @@ export const PRODUCTS: Product[] = [
     tagline: "Built for Business",
     description:
       "Enterprise-grade reliability meets refined design. MIL-STD-810H certified durability with HP Sure View privacy display and AI-powered collaboration tools.",
-    price: 1299,
+    price: 114999,
     badge: "New",
     category: "business",
     colors: [
@@ -102,8 +102,8 @@ export const PRODUCTS: Product[] = [
       { name: "Black",       hex: "#1C1C1C" },
     ],
     configs: [
-      { ram: "16GB", storage: "256GB", price: 1299 },
-      { ram: "32GB", storage: "512GB", price: 1599 },
+      { ram: "16GB", storage: "256GB", price: 114999 },
+      { ram: "32GB", storage: "512GB", price: 134999 },
     ],
     specs: [
       { label: "Processor",   value: "Intel Core Ultra 5 135U" },
@@ -126,13 +126,13 @@ export const PRODUCTS: Product[] = [
     tagline: "Dominate Every Frame",
     description:
       "Engineered for competitive gaming. Thermal architecture built for sustained performance with RGB keyboard and high-refresh display.",
-    price: 1699,
+    price: 149999,
     badge: "Limited",
     category: "gaming",
     colors: [{ name: "Shadow Black", hex: "#0D0D0D" }],
     configs: [
-      { ram: "16GB", storage: "512GB", price: 1699 },
-      { ram: "32GB", storage: "1TB",   price: 1999 },
+      { ram: "16GB", storage: "512GB", price: 149999 },
+      { ram: "32GB", storage: "1TB",   price: 169999 },
     ],
     specs: [
       { label: "Processor",   value: "AMD Ryzen 9 7945HX" },
@@ -155,7 +155,7 @@ export const PRODUCTS: Product[] = [
     tagline: "The World's Best Business Laptop",
     description:
       "Ultra-light. Ultra-secure. The HP Dragonfly G4 weighs under 1kg yet delivers uncompromising performance and all-day battery life.",
-    price: 2199,
+    price: 189999,
     badge: "New",
     category: "business",
     colors: [
@@ -163,8 +163,8 @@ export const PRODUCTS: Product[] = [
       { name: "Sparkling Black", hex: "#1A1A1A" },
     ],
     configs: [
-      { ram: "16GB", storage: "512GB", price: 2199 },
-      { ram: "32GB", storage: "1TB",   price: 2599 },
+      { ram: "16GB", storage: "512GB", price: 189999 },
+      { ram: "32GB", storage: "1TB",   price: 219999 },
     ],
     specs: [
       { label: "Processor",   value: "Intel Core Ultra 7 165U" },
@@ -187,8 +187,8 @@ export const PRODUCTS: Product[] = [
     tagline: "Everyday Excellence",
     description:
       "Premium performance for everyday life. A beautiful OLED display and all-day battery in a slim, lightweight design.",
-    price: 899,
-    originalPrice: 999,
+    price: 79999,
+    originalPrice: 89999,
     badge: "Sale",
     category: "ultrabook",
     colors: [
@@ -196,8 +196,8 @@ export const PRODUCTS: Product[] = [
       { name: "Cool Silver", hex: "#A8B4BE" },
     ],
     configs: [
-      { ram: "8GB",  storage: "512GB", price: 899 },
-      { ram: "16GB", storage: "512GB", price: 1099 },
+      { ram: "8GB",  storage: "512GB", price: 79999 },
+      { ram: "16GB", storage: "512GB", price: 94999 },
     ],
     specs: [
       { label: "Processor",   value: "Intel Core i7-1355U" },
@@ -211,6 +211,100 @@ export const PRODUCTS: Product[] = [
     rating: 4.5,
     reviewCount: 421,
     inBox: ["HP Pavilion Plus 14", "45W USB-C Adapter", "Quick Start Guide"],
+  },
+  {
+    id: "7",
+    slug: "laserjet-pro-m404dn",
+    name: "LaserJet Pro M404dn",
+    series: "HP LaserJet Series",
+    tagline: "Built to Keep You Moving",
+    description:
+      "A laser printer designed to let you focus your time where it’s most effective-helping to grow your business and staying ahead of the competition.",
+    price: 34999,
+    originalPrice: 39999,
+    category: "printer",
+    colors: [{ name: "Professional White", hex: "#F3F4F6" }],
+    configs: [{ ram: "256MB", storage: "Flash", price: 34999 }],
+    specs: [
+      { label: "Function",    value: "Print only" },
+      { label: "Speed",       value: "Up to 40 ppm" },
+      { label: "Resolution",  value: "1200 x 1200 dpi" },
+      { label: "Connectivity", value: "USB, Ethernet" },
+    ],
+    images: ["/images/printer-1.jpg"],
+    rating: 4.8,
+    reviewCount: 850,
+    inBox: ["HP LaserJet Pro M404dn", "Preinstalled HP Black LaserJet Toner Cartridge", "Power Cord"],
+  },
+  {
+    id: "8",
+    slug: "smart-tank-580",
+    name: "Smart Tank 580",
+    series: "HP Smart Tank Series",
+    tagline: "Smart Printing, Exceptional Savings",
+    description:
+      "Get reliable, high-quality printing with an ultra-low cost per page. Integrated ink tanks and an automatic ink sensor for a mess-free, high-volume printing experience.",
+    price: 18999,
+    badge: "Best Seller",
+    category: "printer",
+    colors: [{ name: "Basalt", hex: "#4B5563" }],
+    configs: [{ ram: "64MB", storage: "None", price: 18999 }],
+    specs: [
+      { label: "Function",    value: "Print, Scan, Copy" },
+      { label: "Speed",       value: "Up to 12 ppm" },
+      { label: "Resolution",  value: "4800 x 1200 optimized dpi" },
+      { label: "Connectivity", value: "Wi-Fi, USB, Bluetooth" },
+    ],
+    images: ["/images/printer-2.jpg"],
+    rating: 4.6,
+    reviewCount: 1240,
+    inBox: ["HP Smart Tank 580", "HP GT53XL Black Original Ink Bottle", "HP GT52 Cyan/Magenta/Yellow Ink Bottles"],
+  },
+  {
+    id: "9",
+    slug: "laserjet-managed-mfp-m725dn",
+    name: "LaserJet Managed MFP M725dn",
+    series: "HP LaserJet Managed Series",
+    tagline: "Large-format Printing, Manageable Costs",
+    description:
+      "Empower teams to do more—print, scan, copy, and fax on paper sizes up to A3—from a desktop-sized MFP. Focus on business while simplifying printing tasks.",
+    price: 245000,
+    badge: "Limited",
+    category: "copier",
+    colors: [{ name: "Office Grey", hex: "#D1D5DB" }],
+    configs: [{ ram: "1GB", storage: "320GB HDD", price: 245000 }],
+    specs: [
+      { label: "Function",    value: "Print, Copy, Scan, Fax" },
+      { label: "Speed",       value: "Up to 41 ppm" },
+      { label: "Max Paper",   value: "A3 (11 x 17 in)" },
+      { label: "Duty Cycle",  value: "Up to 200,000 pages" },
+    ],
+    images: ["/images/copier-1.jpg"],
+    rating: 4.9,
+    reviewCount: 15,
+    inBox: ["HP LaserJet Managed MFP M725dn", "HP Black LaserJet Toner Cartridge", "Power Cord"],
+  },
+  {
+    id: "10",
+    slug: "thunderbolt-dock-g4",
+    name: "Thunderbolt Dock G4",
+    series: "HP Accessories",
+    tagline: "The Dock That Does It All",
+    description:
+      "Connect and protect your fleet with a dock that delivers multi-OS compatibility and powerful security. Boost productivity with high-speed data transfers and 4K display support.",
+    price: 24999,
+    category: "accessory",
+    colors: [{ name: "Black", hex: "#000000" }],
+    configs: [{ ram: "N/A", storage: "N/A", price: 24999 }],
+    specs: [
+      { label: "Ports",       value: "Thunderbolt 4, USB-C, HDMI, DP, RJ-45" },
+      { label: "Power",       value: "120W / 280W Delivery" },
+      { label: "Resolution",  value: "Supports up to 4x 4K displays" },
+    ],
+    images: ["/images/accessory-1.jpg"],
+    rating: 4.7,
+    reviewCount: 312,
+    inBox: ["HP Thunderbolt Dock 120W G4", "Power Adapter", "Warranty"],
   },
 ];
 

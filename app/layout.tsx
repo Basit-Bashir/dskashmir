@@ -11,10 +11,14 @@ export const metadata: Metadata = {
   },
 };
 
+import { CartProvider } from "@/lib/context/CartContext";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CartProvider>{children}</CartProvider>
+      </body>
     </html>
   );
 }

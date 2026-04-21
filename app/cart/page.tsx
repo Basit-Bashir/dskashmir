@@ -16,34 +16,16 @@ type CartItem = {
   qty: number;
 };
 
-const INITIAL_CART: CartItem[] = [
-  { id: "1", name: "HP Spectre x360 14",  series: "HP Spectre Series", config: "16GB / 1TB / Nightfall Black", price: 2099, qty: 1 },
-  { id: "2", name: "HP EliteBook 840 G11", series: "HP EliteBook Series", config: "32GB / 512GB / Pike Silver",  price: 1599, qty: 1 },
-];
+import { useCart } from "@/lib/context/CartContext";
 
 export default function CartPage() {
-  const [items, setItems] = useState<CartItem[]>(INITIAL_CART);
+  const { items, updateQty, removeItem, subtotal } = useCart();
   const [promo, setPromo]   = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
-  const updateQty = (id: string, delta: number) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, qty: Math.max(1, item.qty + delta) }
-          : item
-      )
-    );
-  };
-
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const subtotal  = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const shipping  = subtotal >= 500 ? 0 : 19.99;
+  const shipping  = subtotal >= 40000 ? 0 : 999;
   const discount  = promoApplied ? subtotal * 0.1 : 0;
-  const tax       = (subtotal - discount) * 0.08;
+  const tax       = (subtotal - discount) * 0.18; // GST
   const total     = subtotal - discount + shipping + tax;
 
   return (
