@@ -14,7 +14,7 @@ export default function HeroSection() {
         <span className="hidden xl:block absolute right-10 top-1/2 -translate-y-1/2
                          font-serif text-[10px] tracking-[0.3em] uppercase
                          text-hp-white/15 writing-mode-vertical rotate-180"
-              style={{ writingMode: "vertical-rl" }}>
+          style={{ writingMode: "vertical-rl" }}>
           DSK — 2024 Collection
         </span>
 
@@ -37,7 +37,7 @@ export default function HeroSection() {
                        leading-[1.05] text-hp-white mb-6"
           >
             Engineered for the{" "}
-            <em className="italic text-hp-gold not-italic font-light">
+            <em className="text-hp-gold not-italic font-light">
               Extraordinary
             </em>
           </motion.h1>
