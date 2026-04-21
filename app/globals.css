@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --font-cormorant: 'Cormorant Garamond', Georgia, serif;
+  --font-dm-sans:   'DM Sans', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-dm-sans);
+  background-color: #FAFAF8;
+  color: #0A0A0A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #F5F3EF; }
+::-webkit-scrollbar-thumb { background: #C8A96E; border-radius: 2px; }
+
+/* Selection */
+::selection { background: #0096D6; color: white; }
+
+@layer components {
+  /* Typography */
+  .font-serif    { font-family: var(--font-cormorant); }
+  .font-sans     { font-family: var(--font-dm-sans); }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-hp-blue text-white text-[11px] tracking-[0.15em] uppercase font-medium
+           px-8 py-3.5 transition-all duration-200 hover:bg-hp-blueDark
+           hover:-translate-y-px active:translate-y-0 cursor-pointer border-0;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-hp-black text-[11px] tracking-[0.15em] uppercase font-normal
+           px-8 py-3.5 border border-hp-black/30 transition-all duration-200
+           hover:border-hp-blue hover:text-hp-blue cursor-pointer;
+  }
+  .btn-ghost-white {
+    @apply bg-transparent text-hp-white text-[11px] tracking-[0.15em] uppercase font-normal
+           px-8 py-3.5 border border-hp-white/30 transition-all duration-200
+           hover:border-hp-gold hover:text-hp-gold cursor-pointer;
+  }
+
+  /* Section layout */
+  .section-pad   { @apply px-6 md:px-10 lg:px-16 xl:px-20; }
+  .max-content   { @apply max-w-[1400px] mx-auto; }
+
+  /* Eyebrow label */
+  .eyebrow {
+    @apply text-[9px] tracking-[0.3em] uppercase text-hp-blue font-medium block mb-3;
+  }
+
+  /* Section title */
+  .section-title {
+    @apply font-serif text-4xl md:text-5xl font-light leading-tight;
+  }
+
+  /* Product card */
+  .product-card {
+    @apply bg-hp-cream overflow-hidden cursor-pointer;
+  }
+  .product-card-img {
+    @apply relative overflow-hidden bg-hp-cream;
+  }
+  .product-card-img img {
+    @apply w-full h-full object-cover transition-transform duration-700 group-hover:scale-105;
+  }
+  .product-card-overlay {
+    @apply absolute inset-0 bg-hp-black/50 flex items-center justify-center
+           opacity-0 group-hover:opacity-100 transition-opacity duration-300;
+  }
+
+  /* Form inputs */
+  .input-underline {
+    @apply w-full border-0 border-b border-hp-light bg-transparent py-3
+           text-sm font-light text-hp-black placeholder:text-hp-gray/60
+           focus:outline-none focus:border-hp-blue transition-colors duration-200;
+  }
+
+  /* Divider */
+  .divider { @apply w-full h-px bg-hp-light; }
+}
