@@ -26,7 +26,7 @@ export default function HeroSection() {
             className="text-[10px] tracking-[0.3em] uppercase text-hp-gold font-medium
                        block mb-8"
           >
-            New Collection — 2024
+            New Collection — {new Date().getFullYear()}
           </motion.span>
 
           <motion.h1
@@ -113,7 +113,7 @@ export default function HeroSection() {
             Starting from
           </span>
           <span className="font-serif text-3xl font-medium text-hp-black">
-            $1,899
+            ₹1,29,999
           </span>
         </motion.div>
       </div>

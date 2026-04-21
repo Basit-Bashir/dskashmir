@@ -4,7 +4,7 @@ const TRUST_ITEMS = [
   {
     icon: Truck,
     title: "Free Shipping",
-    sub: "On all orders over $500",
+    sub: "On all orders over ₹10,000",
   },
   {
     icon: ShieldCheck,
