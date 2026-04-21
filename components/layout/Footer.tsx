@@ -6,7 +6,7 @@ const FOOTER_COLS = [
   {
     heading: "Our Story",
     links: [
-      { label: "About HP Atelier", href: "/about" },
+      { label: "About DSK", href: "/about" },
       { label: "Design Philosophy", href: "/about#philosophy" },
       { label: "Sustainability", href: "/about#sustainability" },
       { label: "Press", href: "/press" },

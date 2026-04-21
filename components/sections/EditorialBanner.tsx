@@ -45,7 +45,7 @@ export default function EditorialBanner() {
           className="mt-6 text-sm font-light leading-relaxed text-hp-white/45
                      max-w-lg mx-auto"
         >
-          Every HP Atelier product is hand-selected for its craftsmanship,
+          Every DSK product is hand-selected for its craftsmanship,
           performance, and design integrity.
         </motion.p>
 

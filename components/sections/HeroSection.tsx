@@ -15,7 +15,7 @@ export default function HeroSection() {
                          font-serif text-[10px] tracking-[0.3em] uppercase
                          text-hp-white/15 writing-mode-vertical rotate-180"
               style={{ writingMode: "vertical-rl" }}>
-          HP Atelier — 2024 Collection
+          DSK — 2024 Collection
         </span>
 
         <div>
