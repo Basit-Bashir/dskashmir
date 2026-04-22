@@ -58,7 +58,7 @@ export default function CartPage() {
                   <div className="divider mb-0" />
                   {items.map((item) => (
                     <div
-                      key={item.id}
+                      key={`${item.id}-${item.config}`}
                       className="flex gap-5 py-7 border-b border-hp-light"
                     >
                       {/* Thumbnail */}
@@ -80,7 +80,7 @@ export default function CartPage() {
                             <p className="text-[11px] text-hp-gray font-light mt-1">{item.config}</p>
                           </div>
                           <button
-                            onClick={() => removeItem(item.id)}
+                            onClick={() => removeItem(item.id, item.config)}
                             className="text-hp-gray/40 hover:text-hp-black transition-colors
                                        flex-shrink-0 mt-0.5"
                             aria-label="Remove item"
@@ -93,7 +93,7 @@ export default function CartPage() {
                           {/* Qty stepper */}
                           <div className="flex items-center border border-hp-light">
                             <button
-                              onClick={() => updateQty(item.id, -1)}
+                              onClick={() => updateQty(item.id, item.config, -1)}
                               className="w-8 h-8 flex items-center justify-center
                                          text-hp-gray hover:text-hp-black transition-colors
                                          border-r border-hp-light"
@@ -104,7 +104,7 @@ export default function CartPage() {
                               {item.qty}
                             </span>
                             <button
-                              onClick={() => updateQty(item.id, 1)}
+                              onClick={() => updateQty(item.id, item.config, 1)}
                               className="w-8 h-8 flex items-center justify-center
                                          text-hp-gray hover:text-hp-black transition-colors
                                          border-l border-hp-light"

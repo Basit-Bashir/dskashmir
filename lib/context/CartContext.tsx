@@ -15,8 +15,8 @@ export type CartItem = {
 interface CartContextType {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (id: string) => void;
-  updateQty: (id: string, delta: number) => void;
+  removeItem: (id: string, config: string) => void;
+  updateQty: (id: string, config: string, delta: number) => void;
   clearCart: () => void;
   cartCount: number;
   subtotal: number;
@@ -62,14 +62,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeItem = (id: string, config: string) => {
+    setItems((prev) => prev.filter((i) => !(i.id === id && i.config === config)));
   };
 
-  const updateQty = (id: string, delta: number) => {
+  const updateQty = (id: string, config: string, delta: number) => {
     setItems((prev) =>
       prev.map((i) =>
-        i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i
+        i.id === id && i.config === config ? { ...i, qty: Math.max(1, i.qty + delta) } : i
       )
     );
   };

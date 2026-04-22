@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, ShoppingBag, User, Menu, X } from "lucide-react";
+import { Search, ShoppingBag, User, Menu, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCart } from "@/lib/context/CartContext";
+import { PRODUCTS } from "@/lib/products";
+import { formatPrice } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -12,18 +15,46 @@ const NAV_LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
-import { useCart } from "@/lib/context/CartContext";
-
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const { cartCount } = useCart();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+      setSearchQuery("");
+    }
+  }, [searchOpen]);
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, []);
+
+  const filteredProducts = searchQuery.trim() === ""
+    ? []
+    : PRODUCTS.filter(p =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.series.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 5);
 
   return (
     <>
@@ -37,7 +68,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16 md:h-20">
 
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0">
+            <Link href="/" className="flex-shrink-0" onClick={() => { setMobileOpen(false); setSearchOpen(false); }}>
               <span className="font-serif text-xl md:text-2xl font-light tracking-[0.15em] text-hp-black">
                 <span className="text-hp-blue font-medium">DSK</span>
               </span>
@@ -60,7 +91,8 @@ export default function Navbar() {
             {/* Icons */}
             <div className="flex items-center gap-4 md:gap-5">
               <button
-                className="hidden md:flex text-hp-black/70 hover:text-hp-blue
+                onClick={() => setSearchOpen(true)}
+                className="text-hp-black/70 hover:text-hp-blue
                            transition-colors duration-200"
                 aria-label="Search"
               >
@@ -105,6 +137,121 @@ export default function Navbar() {
         </div>
       </header>
 
+      {/* Search Overlay */}
+      <AnimatePresence>
+        {searchOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-hp-white flex flex-col"
+          >
+            <div className="section-pad py-6 md:py-10 border-b border-hp-light bg-hp-cream/30">
+              <div className="max-content flex items-center justify-between">
+                <div className="flex-1 flex items-center gap-4">
+                  <Search size={24} strokeWidth={1.5} className="text-hp-blue" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search HP products, series, or categories..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-transparent border-0 text-xl md:text-3xl font-serif 
+                               font-light text-hp-black placeholder:text-hp-gray/30 
+                               focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => setSearchOpen(false)}
+                  className="p-2 text-hp-gray hover:text-hp-black transition-colors"
+                >
+                  <X size={28} strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto section-pad py-12">
+              <div className="max-content">
+                {searchQuery.trim() === "" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+                    <div>
+                      <h3 className="eyebrow">Quick Links</h3>
+                      <div className="flex flex-col gap-4 mt-6">
+                        {["Spectre", "Envy", "EliteBook", "Omen"].map(cat => (
+                          <button
+                            key={cat}
+                            onClick={() => setSearchQuery(cat)}
+                            className="text-left font-serif text-2xl font-light text-hp-black/60 hover:text-hp-blue transition-colors"
+                          >
+                            HP {cat} Series
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="eyebrow">Popular Searches</h3>
+                      <div className="flex flex-wrap gap-2 mt-6">
+                        {["Convertible", "OLED", "Gaming", "A3 Copiers", "LaserJet"].map(tag => (
+                          <button
+                            key={tag}
+                            onClick={() => setSearchQuery(tag)}
+                            className="px-4 py-2 border border-hp-light text-[11px] tracking-wider uppercase font-medium hover:border-hp-blue hover:text-hp-blue transition-all"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="eyebrow">Results ({filteredProducts.length})</h3>
+                    {filteredProducts.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-1 mt-8">
+                        {filteredProducts.map(p => (
+                          <Link
+                            key={p.id}
+                            href={`/product/${p.slug}`}
+                            onClick={() => setSearchOpen(false)}
+                            className="group flex items-center justify-between p-6 hover:bg-hp-cream transition-all border-b border-hp-light last:border-0"
+                          >
+                            <div className="flex items-center gap-8">
+                              <div className="w-16 h-12 bg-hp-cream flex items-center justify-center border border-hp-light/50 group-hover:bg-white transition-colors">
+                                <span className="text-[10px] text-hp-gray font-serif">{p.name.split(" ")[1] || p.name}</span>
+                              </div>
+                              <div>
+                                <p className="text-[10px] tracking-widest uppercase text-hp-gray mb-1">{p.series}</p>
+                                <h4 className="text-lg font-serif font-light text-hp-black group-hover:text-hp-blue transition-colors">{p.name}</h4>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <span className="font-serif text-lg font-medium">{formatPrice(p.price)}</span>
+                              <ArrowRight size={18} strokeWidth={1.5} className="text-hp-blue opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all" />
+                            </div>
+                          </Link>
+                        ))}
+                        <Link
+                          href={`/collections?search=${searchQuery}`}
+                          onClick={() => setSearchOpen(false)}
+                          className="inline-flex items-center gap-2 mt-10 text-[11px] tracking-widest uppercase text-hp-blue font-medium hover:gap-3 transition-all"
+                        >
+                          View all results <ArrowRight size={14} />
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="py-20 text-center">
+                        <p className="font-serif text-2xl font-light text-hp-gray mb-4">No products found for "{searchQuery}"</p>
+                        <p className="text-sm text-hp-gray/60 max-w-sm mx-auto">Try checking your spelling or use a more general term like "Laptop" or "Printer".</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Mobile Menu */}
       <AnimatePresence>
         {mobileOpen && (
@@ -141,9 +288,6 @@ export default function Navbar() {
                 transition={{ delay: 0.5 }}
                 className="flex items-center gap-6 mt-10"
               >
-                <button className="text-hp-white/60 hover:text-hp-white transition-colors">
-                  <Search size={20} strokeWidth={1.5} />
-                </button>
                 <button className="text-hp-white/60 hover:text-hp-white transition-colors">
                   <User size={20} strokeWidth={1.5} />
                 </button>

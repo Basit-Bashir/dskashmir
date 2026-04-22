@@ -15,7 +15,7 @@ export default function HeroSection() {
                          font-serif text-[10px] tracking-[0.3em] uppercase
                          text-hp-white/15 writing-mode-vertical rotate-180"
           style={{ writingMode: "vertical-rl" }}>
-          DSK — 2024 Collection
+          DSK — {new Date().getFullYear()} Collection
         </span>
 
         <div>
@@ -36,7 +36,7 @@ export default function HeroSection() {
             className="font-serif text-5xl md:text-6xl xl:text-7xl font-light
                        leading-[1.05] text-hp-white mb-6"
           >
-            Engineered for the{" "}
+            Engineered for{" "}
             <em className="text-hp-gold not-italic font-light">
               Extraordinary
             </em>

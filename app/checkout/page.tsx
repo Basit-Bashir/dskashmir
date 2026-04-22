@@ -7,6 +7,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { formatPrice } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/lib/context/CartContext";
 
 const STEPS = ["Shipping", "Payment", "Review", "Confirmation"];
 
@@ -23,22 +24,38 @@ const EMPTY_SHIPPING: ShippingData = {
 };
 
 export default function CheckoutPage() {
+  const { items, subtotal } = useCart();
   const [step, setStep] = useState(0);
   const [shipping, setShipping] = useState<ShippingData>(EMPTY_SHIPPING);
 
-  const order = {
-    items: [
-      { name: "HP Spectre x360 14", config: "16GB / 1TB", price: 2099 },
-      { name: "HP EliteBook 840 G11", config: "32GB / 512GB", price: 1599 },
-    ],
-    subtotal: 3698,
-    shippingCost: shipping.shippingMethod === "express" ? 14.99 : 0,
-    tax: 295.84,
-  };
-  const total = order.subtotal + order.shippingCost + order.tax;
+  // If express is selected, it costs 1499 (or similar), otherwise 0
+  // Standard shipping is free if subtotal > 40000, otherwise 999
+  const shippingBase = subtotal >= 40000 ? 0 : 999;
+  const shippingExtra = shipping.shippingMethod === "express" ? 1500 : 0;
+  const shippingCost = shippingBase + shippingExtra;
+  
+  const tax = subtotal * 0.18; // 18% GST
+  const total = subtotal + shippingCost + tax;
 
   const update = (field: keyof ShippingData, val: string) =>
     setShipping((prev) => ({ ...prev, [field]: val }));
+
+  if (items.length === 0 && step < 3) {
+    return (
+      <>
+        <Navbar />
+        <main className="pt-20 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="font-serif text-3xl font-light mb-6">Your cart is empty</h2>
+            <Link href="/collections" className="btn-primary">
+              Continue Shopping
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
@@ -118,8 +135,8 @@ export default function CheckoutPage() {
                       <h3 className="font-serif text-xl font-light mb-5">Shipping Method</h3>
                       <div className="space-y-3">
                         {[
-                          { val: "standard", title: "Standard Shipping", sub: "5–7 business days", price: "Free" },
-                          { val: "express",  title: "Express Shipping",  sub: "2 business days",    price: "$14.99" },
+                          { val: "standard", title: "Standard Shipping", sub: "5–7 business days", price: shippingBase === 0 ? "Free" : formatPrice(shippingBase) },
+                          { val: "express",  title: "Express Shipping",  sub: "2 business days",    price: formatPrice(shippingBase + 1500) },
                         ].map(({ val, title, sub, price }) => (
                           <label
                             key={val}
@@ -214,13 +231,13 @@ export default function CheckoutPage() {
                   <div>
                     <h2 className="font-serif text-3xl font-light mb-8">Review Your Order</h2>
                     <div className="space-y-4 pb-8 border-b border-hp-light">
-                      {order.items.map((item) => (
-                        <div key={item.name} className="flex justify-between items-center">
+                      {items.map((item) => (
+                        <div key={`${item.id}-${item.config}`} className="flex justify-between items-center">
                           <div>
                             <p className="text-sm font-medium">{item.name}</p>
-                            <p className="text-[11px] text-hp-gray font-light">{item.config}</p>
+                            <p className="text-[11px] text-hp-gray font-light">{item.config} (x{item.qty})</p>
                           </div>
-                          <span className="font-serif text-lg font-medium">{formatPrice(item.price)}</span>
+                          <span className="font-serif text-lg font-medium">{formatPrice(item.price * item.qty)}</span>
                         </div>
                       ))}
                     </div>
@@ -254,28 +271,28 @@ export default function CheckoutPage() {
                   <div className="border border-hp-light bg-hp-cream p-6 sticky top-24">
                     <h3 className="font-serif text-xl font-light mb-5">Order Summary</h3>
                     <div className="space-y-3 pb-5 border-b border-hp-light">
-                      {order.items.map((item) => (
-                        <div key={item.name} className="flex justify-between gap-4">
+                      {items.map((item) => (
+                        <div key={`${item.id}-${item.config}`} className="flex justify-between gap-4">
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{item.name}</p>
-                            <p className="text-[11px] text-hp-gray font-light">{item.config}</p>
+                            <p className="text-[11px] text-hp-gray font-light">{item.config} (x{item.qty})</p>
                           </div>
-                          <span className="text-sm font-medium flex-shrink-0">{formatPrice(item.price)}</span>
+                          <span className="text-sm font-medium flex-shrink-0">{formatPrice(item.price * item.qty)}</span>
                         </div>
                       ))}
                     </div>
                     <div className="space-y-2.5 py-5 border-b border-hp-light text-sm">
                       <div className="flex justify-between">
                         <span className="font-light text-hp-gray">Subtotal</span>
-                        <span>{formatPrice(order.subtotal)}</span>
+                        <span>{formatPrice(subtotal)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="font-light text-hp-gray">Shipping</span>
-                        <span>{order.shippingCost === 0 ? "Free" : formatPrice(order.shippingCost)}</span>
+                        <span>{shippingCost === 0 ? "Free" : formatPrice(shippingCost)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="font-light text-hp-gray">Tax</span>
-                        <span>{formatPrice(order.tax)}</span>
+                        <span className="font-light text-hp-gray">Tax (18% GST)</span>
+                        <span>{formatPrice(tax)}</span>
                       </div>
                     </div>
                     <div className="flex justify-between items-baseline pt-4">
