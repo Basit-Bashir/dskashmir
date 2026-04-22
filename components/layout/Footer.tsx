@@ -160,6 +160,13 @@ export default function Footer() {
             >
               Cookie Settings
             </Link>
+            <Link
+              href="/sitemap"
+              className="text-[11px] text-hp-white/30 hover:text-hp-white/60
+                         transition-colors duration-200"
+            >
+              Sitemap
+            </Link>
           </div>
         </div>
       </div>
