@@ -139,16 +139,27 @@ export default function Footer() {
             © {new Date().getFullYear()} DSK. All rights reserved.
           </p>
           <div className="flex items-center gap-6">
-            {["Privacy Policy", "Terms of Use", "Cookie Settings"].map((t) => (
-              <Link
-                key={t}
-                href="#"
-                className="text-[11px] text-hp-white/30 hover:text-hp-white/60
-                           transition-colors duration-200"
-              >
-                {t}
-              </Link>
-            ))}
+            <Link
+              href="/privacy-policy"
+              className="text-[11px] text-hp-white/30 hover:text-hp-white/60
+                         transition-colors duration-200"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms-of-use"
+              className="text-[11px] text-hp-white/30 hover:text-hp-white/60
+                         transition-colors duration-200"
+            >
+              Terms of Use
+            </Link>
+            <Link
+              href="/cookie-settings"
+              className="text-[11px] text-hp-white/30 hover:text-hp-white/60
+                         transition-colors duration-200"
+            >
+              Cookie Settings
+            </Link>
           </div>
         </div>
       </div>
