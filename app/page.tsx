@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer";
 import TrustBar from "@/components/sections/TrustBar";
 import ProductCard from "@/components/product/ProductCard";
 import HeroSection from "@/components/sections/HeroSection";
+import PartnerMarquee from "@/components/sections/PartnerMarquee";
 import EditorialBanner from "@/components/sections/EditorialBanner";
 import Counter from "@/components/ui/Counter";
 import { PRODUCTS } from "@/lib/products";
@@ -28,6 +29,9 @@ export default function HomePage() {
 
         {/* Trust bar */}
         <TrustBar />
+
+        {/* Partner Logos Marquee */}
+        <PartnerMarquee />
 
         {/* Featured Products */}
         <section className="section-pad py-20 md:py-28">
