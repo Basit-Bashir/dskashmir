@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SitemapClient from "./SitemapClient";
+import { fetchCatalogProducts } from "@/lib/hp-api";
 
 export const metadata: Metadata = {
   title: "Sitemap — Browse All Pages & Products",
@@ -13,11 +14,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function SitemapPage() {
+export default async function SitemapPage() {
+  const { products } = await fetchCatalogProducts({ catalogName: "Laptops", pageSize: 1000 });
+
   return (
     <>
       <Navbar />
-      <SitemapClient />
+      <SitemapClient products={products} />
       <Footer />
     </>
   );

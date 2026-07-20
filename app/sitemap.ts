@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
-import { PRODUCTS } from "@/lib/products";
+import { fetchCatalogProducts } from "@/lib/hp-api";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://www.dskashmir.com";
 
   // Static routes
@@ -15,7 +15,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   );
 
   // Dynamic product routes
-  const productRoutes = PRODUCTS.map((product) => ({
+  const { products } = await fetchCatalogProducts({ catalogName: "Laptops", pageSize: 1000 });
+  const productRoutes = products.map((product) => ({
     url: `${baseUrl}/product/${product.slug}`,
     lastModified: new Date(),
     changeFrequency: "daily" as const,

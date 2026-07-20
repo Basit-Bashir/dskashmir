@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { SlidersHorizontal, ChevronDown, Loader2 } from "lucide-react";
 import ProductCard from "@/components/product/ProductCard";
 import type { Product } from "@/lib/products";
-import { getProductsByCategory } from "@/lib/products";
+import { fetchCatalogProductsClient } from "@/lib/hp-client";
 
 const CATEGORIES = [
   { key: "all",       label: "All" },
@@ -25,13 +25,11 @@ const SORT_OPTIONS = [
 interface Props {
   initialProducts: Product[];
   totalCount: number;
-  usingApiData: boolean;
 }
 
 export default function CollectionsClient({
   initialProducts,
   totalCount,
-  usingApiData,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState("all");
   const [sortBy, setSortBy]                 = useState("featured");
@@ -43,129 +41,17 @@ export default function CollectionsClient({
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  async function loadPage(newPage: number, category: string) {
-    if (!usingApiData) return;
-
+  function loadPage(newPage: number, category: string) {
     startTransition(async () => {
-      const facetValues =
-        category !== "all" ? [`category:${category}`] : undefined;
-
-      const res = await fetch("/api/hp/catalogitems", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          catalogName: "Laptops",
-          countryCode: "IN",
-          languageCode: "EN",
-          outputHierarchyLevel: "Product",
-          pageNumber: newPage,
-          pageSize: PAGE_SIZE,
-          requestor: "DSKASHMIR-PRO",
-        }),
+      const { products: mapped, total: newTotal } = await fetchCatalogProductsClient({
+        category,
+        pageNumber: newPage,
+        pageSize: PAGE_SIZE,
       });
 
-      if (!res.ok) return;
-
-      const data = await res.json();
-      if (data.items?.length) {
-        // Enrich with content + images
-        const productNumbers: string[] = data.items.map(
-          (i: { productNumber: string }) => i.productNumber
-        );
-
-        const [contentRes, imagesRes] = await Promise.allSettled([
-          fetch("/api/hp/productcontent", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              productNumbers,
-              countryCode: "IN",
-              languageCode: "EN",
-              requestor: "DSKASHMIR-PRO",
-            }),
-          }).then((r) => r.json()),
-          fetch("/api/hp/images", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              productNumbers,
-              countryCode: "IN",
-              languageCode: "EN",
-              requestor: "DSKASHMIR-PRO",
-            }),
-          }).then((r) => r.json()),
-        ]);
-
-        const contentMap = new Map(
-          contentRes.status === "fulfilled"
-            ? (contentRes.value.products ?? []).map(
-                (p: { productNumber: string }) => [p.productNumber, p]
-              )
-            : []
-        );
-
-        const imagesMap = new Map(
-          imagesRes.status === "fulfilled"
-            ? (imagesRes.value.products ?? []).map(
-                (p: { productNumber: string; images: unknown[] }) => [p.productNumber, p.images]
-              )
-            : []
-        );
-
-        const USD_TO_INR = 84;
-        const mapped: Product[] = data.items.map(
-          (item: {
-            productNumber: string;
-            shortName?: string;
-            longName?: string;
-            productLine?: string;
-            category?: string;
-            price?: { unitPrice?: number; listPrice?: number };
-          }) => {
-            const content: {
-              name?: string;
-              shortDescription?: string;
-              longDescription?: string;
-              specifications?: { name: string; value: string }[];
-              productLine?: string;
-            } | undefined = contentMap.get(item.productNumber) as typeof content;
-            const imgs: { url: string; type: string }[] =
-              (imagesMap.get(item.productNumber) as { url: string; type: string }[] | undefined) ?? [];
-
-            const name =
-              content?.name || item.longName || item.shortName || item.productNumber;
-            const price = Math.round((item.price?.unitPrice ?? 0) * USD_TO_INR);
-
-            return {
-              id: item.productNumber,
-              slug: name
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
-                .replace(/^-+|-+$/g, ""),
-              productNumber: item.productNumber,
-              name,
-              series: content?.productLine || item.productLine || "HP",
-              tagline: content?.shortDescription ?? "",
-              description: content?.longDescription ?? content?.shortDescription ?? "",
-              price,
-              category: "ultrabook" as Product["category"],
-              colors: [{ name: "Default", hex: "#1a1a2e" }],
-              configs: [{ ram: "—", storage: "—", price }],
-              specs:
-                content?.specifications?.map((s) => ({
-                  label: s.name,
-                  value: s.value,
-                })) ?? [],
-              images: imgs.map((img) => img.url),
-              rating: 4.5,
-              reviewCount: 0,
-              inBox: [],
-            } satisfies Product;
-          }
-        );
-
+      if (mapped.length) {
         setProducts(mapped);
-        setTotal(data.totalResults ?? mapped.length);
+        setTotal(newTotal);
         setPage(newPage);
       }
     });
@@ -173,20 +59,19 @@ export default function CollectionsClient({
 
   function handleCategoryChange(key: string) {
     setActiveCategory(key);
-    if (usingApiData) {
-      loadPage(1, key);
-    }
+    loadPage(1, key);
   }
 
-  // For static data: filter + sort client-side
-  const displayProducts = usingApiData
-    ? products
-    : getProductsByCategory(activeCategory).sort((a, b) => {
+  const displayProducts = useMemo(
+    () =>
+      [...products].sort((a, b) => {
         if (sortBy === "price-asc")  return a.price - b.price;
         if (sortBy === "price-desc") return b.price - a.price;
         if (sortBy === "rating")     return b.rating - a.rating;
         return 0;
-      });
+      }),
+    [products, sortBy]
+  );
 
   return (
     <main className="pt-20">
@@ -288,8 +173,8 @@ export default function CollectionsClient({
           </div>
         )}
 
-        {/* Pagination — only shown when using live API data */}
-        {usingApiData && totalPages > 1 && (
+        {/* Pagination */}
+        {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2 mt-16 pb-8">
             {Array.from({ length: Math.min(totalPages, 8) }, (_, i) => i + 1).map(
               (n) => (

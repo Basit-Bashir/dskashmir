@@ -9,16 +9,18 @@ import HeroSection from "@/components/sections/HeroSection";
 import PartnerMarquee from "@/components/sections/PartnerMarquee";
 import EditorialBanner from "@/components/sections/EditorialBanner";
 import Counter from "@/components/ui/Counter";
-import { PRODUCTS } from "@/lib/products";
+import { fetchCatalogProducts } from "@/lib/hp-api";
 
 export const metadata: Metadata = {
   title: "DSK — Premium Technology",
   description: "Discover HP's finest laptops and technology. Engineered for the extraordinary.",
 };
 
-const FEATURED = PRODUCTS.slice(0, 3);
+export default async function HomePage() {
+  const { products } = await fetchCatalogProducts({ pageSize: 6 });
+  const FEATURED = products.slice(0, 3);
+  const NEW_ARRIVALS = products.slice(3, 6);
 
-export default function HomePage() {
   return (
     <>
       <Navbar />
@@ -78,7 +80,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {PRODUCTS.slice(3, 6).map((product, i) => (
+              {NEW_ARRIVALS.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} />
               ))}
             </div>

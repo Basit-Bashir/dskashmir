@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { PRODUCTS, getProductBySlug } from "@/lib/products";
-import { fetchProductByNumber } from "@/lib/hp-api";
+import { fetchCatalogProducts, fetchProductByNumber } from "@/lib/hp-api";
 import ProductPageClient from "./ProductPageClient";
 import type { Product } from "@/lib/products";
 
@@ -11,14 +11,21 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+// Memoized per-request so generateMetadata and the page component share one fetch.
+const getCatalog = cache(() => fetchCatalogProducts({ pageSize: 1000 }));
+
 /** Resolve a product from a URL slug.
- *  1. Check static catalogue by slug.
- *  2. If not found but slug looks like an HP product number, hit the HP API.
+ *  1. Match against the live HP catalog by slug.
+ *  2. If not found but slug looks like an HP product number, hit the HP API directly.
  *  3. Returns null if nothing matches.
  */
-async function resolveProduct(slug: string): Promise<Product | null> {
-  const staticProduct = getProductBySlug(slug);
-  if (staticProduct) return staticProduct;
+async function resolveProduct(
+  slug: string
+): Promise<{ product: Product | null; catalog: Product[] }> {
+  const { products: catalog } = await getCatalog();
+
+  const bySlug = catalog.find((p) => p.slug === slug) ?? null;
+  if (bySlug) return { product: bySlug, catalog };
 
   // HP product numbers are alphanumeric, often with dashes from URL encoding.
   // Reconstruct the product number (e.g. "8ul47av-aba" → "8UL47AV#ABA")
@@ -26,33 +33,15 @@ async function resolveProduct(slug: string): Promise<Product | null> {
   if (isHPNumber) {
     const productNumber = slug.toUpperCase().replace(/-([a-z0-9]{3})$/i, "#$1");
     const apiProduct = await fetchProductByNumber(productNumber);
-    if (apiProduct) return apiProduct;
+    if (apiProduct) return { product: apiProduct, catalog };
   }
 
-  return null;
-}
-
-/** For known-HP-number products: enrich static product with live images/content */
-async function enrichStaticProduct(product: Product): Promise<Product> {
-  if (!product.productNumber) return product;
-
-  const enriched = await fetchProductByNumber(product.productNumber);
-  if (!enriched) return product;
-
-  return {
-    ...product,
-    // Prefer live description & specs if richer than static
-    description: enriched.description || product.description,
-    specs: enriched.specs.length > 0 ? enriched.specs : product.specs,
-    images:
-      enriched.images.length > 0 ? enriched.images : product.images,
-    tagline: enriched.tagline || product.tagline,
-  };
+  return { product: null, catalog };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = await resolveProduct(slug);
+  const { product } = await resolveProduct(slug);
 
   if (!product) return { title: "Product Not Found" };
 
@@ -84,12 +73,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const baseProduct = await resolveProduct(slug);
-  if (!baseProduct) notFound();
+  const { product, catalog } = await resolveProduct(slug);
+  if (!product) notFound();
 
-  const product = await enrichStaticProduct(baseProduct);
-
-  const related = PRODUCTS.filter((p) => p.id !== product.id).slice(0, 4);
+  const related = catalog.filter((p) => p.id !== product.id).slice(0, 4);
 
   const jsonLd = {
     "@context": "https://schema.org",

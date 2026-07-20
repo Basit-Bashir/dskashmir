@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Search, ShoppingBag, User, Menu, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/lib/context/CartContext";
-import { PRODUCTS } from "@/lib/products";
+import type { Product } from "@/lib/products";
+import { fetchCatalogProductsClient } from "@/lib/hp-client";
 import { formatPrice } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -20,6 +21,9 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchProducts, setSearchProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
   const { cartCount } = useCart();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,9 +52,22 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
+  // Lazily fetch the live catalog the first time search is opened
+  useEffect(() => {
+    if (searchOpen && !productsLoaded && !productsLoading) {
+      setProductsLoading(true);
+      fetchCatalogProductsClient({ catalogName: "Laptops", pageSize: 200 })
+        .then(({ products }) => {
+          setSearchProducts(products);
+          setProductsLoaded(true);
+        })
+        .finally(() => setProductsLoading(false));
+    }
+  }, [searchOpen, productsLoaded, productsLoading]);
+
   const filteredProducts = searchQuery.trim() === ""
     ? []
-    : PRODUCTS.filter(p =>
+    : searchProducts.filter(p =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.series.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -206,7 +223,11 @@ export default function Navbar() {
                 ) : (
                   <div>
                     <h3 className="eyebrow">Results ({filteredProducts.length})</h3>
-                    {filteredProducts.length > 0 ? (
+                    {productsLoading ? (
+                      <div className="py-20 text-center">
+                        <p className="text-sm text-hp-gray/60">Searching…</p>
+                      </div>
+                    ) : filteredProducts.length > 0 ? (
                       <div className="grid grid-cols-1 gap-1 mt-8">
                         {filteredProducts.map(p => (
                           <Link

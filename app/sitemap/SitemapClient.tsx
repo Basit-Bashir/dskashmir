@@ -2,7 +2,7 @@
 
 import LegalLayout from "@/components/layout/LegalLayout";
 import Link from "next/link";
-import { PRODUCTS, Product } from "@/lib/products";
+import type { Product } from "@/lib/products";
 
 const STATIC_PAGES = [
   { label: "Home", href: "/" },
@@ -30,7 +30,11 @@ const CATEGORIES = [
   { label: "Accessories", slug: "accessory" },
 ];
 
-export default function SitemapClient() {
+interface Props {
+  products: Product[];
+}
+
+export default function SitemapClient({ products }: Props) {
   return (
     <LegalLayout title="Sitemap">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
@@ -98,7 +102,7 @@ export default function SitemapClient() {
             Products
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-4">
-            {PRODUCTS.map((product) => (
+            {products.map((product) => (
               <div key={product.id}>
                 <Link 
                   href={`/product/${product.slug}`}

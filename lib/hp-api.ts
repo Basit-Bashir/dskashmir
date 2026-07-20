@@ -6,6 +6,7 @@
  */
 
 import type { Product } from "./products";
+import { catalogsForCategory } from "./hp-catalogs";
 
 const BACKEND = process.env.HP_BACKEND_URL || "http://localhost:3000";
 const COUNTRY_CODE = "IN";
@@ -332,22 +333,13 @@ export function mapHPItemToProduct(
   };
 }
 
-/**
- * Fetches a full page of catalog products, then enriches each with
- * product content and images in two parallel batches.
- * Returns an empty array (not a throw) if the backend is unreachable.
- */
-export async function fetchCatalogProducts(opts: {
-  catalogName?: string;
-  pageNumber?: number;
-  pageSize?: number;
-} = {}): Promise<{ products: Product[]; total: number }> {
+async function fetchFromCatalog(
+  catalogName: string,
+  pageNumber: number,
+  pageSize: number
+): Promise<{ products: Product[]; total: number }> {
   try {
-    const catalogRes = await getCatalogItems({
-      catalogName: opts.catalogName ?? "Laptops",
-      pageNumber: opts.pageNumber ?? 1,
-      pageSize: opts.pageSize ?? 1000,
-    });
+    const catalogRes = await getCatalogItems({ catalogName, pageNumber, pageSize });
 
     const items = catalogRes.items ?? [];
     if (!items.length) return { products: [], total: 0 };
@@ -383,6 +375,41 @@ export async function fetchCatalogProducts(opts: {
   } catch {
     return { products: [], total: 0 };
   }
+}
+
+/**
+ * Fetches a full page of catalog products, then enriches each with
+ * product content and images in two parallel batches.
+ * Returns an empty array (not a throw) if the backend is unreachable.
+ *
+ * Pass `catalogName` to hit one HP catalog directly. Otherwise `category`
+ * (the site's internal category key) is mapped to the catalog(s) that back
+ * it via catalogsForCategory — "printer"/"copier" resolve to the Printers
+ * catalog, everything else to Laptops, and "all"/unset merges both.
+ */
+export async function fetchCatalogProducts(opts: {
+  category?: string;
+  catalogName?: string;
+  pageNumber?: number;
+  pageSize?: number;
+} = {}): Promise<{ products: Product[]; total: number }> {
+  const catalogNames = opts.catalogName ? [opts.catalogName] : catalogsForCategory(opts.category);
+  const pageNumber = opts.pageNumber ?? 1;
+  const pageSize = opts.pageSize ?? 1000;
+
+  if (catalogNames.length === 1) {
+    return fetchFromCatalog(catalogNames[0], pageNumber, pageSize);
+  }
+
+  const perCatalogSize = Math.ceil(pageSize / catalogNames.length);
+  const results = await Promise.all(
+    catalogNames.map((name) => fetchFromCatalog(name, pageNumber, perCatalogSize))
+  );
+
+  return {
+    products: results.flatMap((r) => r.products).slice(0, pageSize),
+    total: results.reduce((sum, r) => sum + r.total, 0),
+  };
 }
 
 /**
