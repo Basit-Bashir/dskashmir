@@ -8,8 +8,9 @@
 import type { Product } from "./products";
 
 const BACKEND = process.env.HP_BACKEND_URL || "http://localhost:3000";
-const LOCALE = "en_IN";
-const COUNTRY = "IN";
+const COUNTRY_CODE = "IN";
+const LANGUAGE_CODE = "EN";
+const REQUESTOR = "DSKASHMIR-PRO";
 
 // ── Response types ────────────────────────────────────────────────────────────
 
@@ -116,118 +117,145 @@ async function callHP<T>(
 // ── Public API functions ──────────────────────────────────────────────────────
 
 export async function getCatalogItems(opts: {
-  locale?: string;
-  country?: string;
+  catalogName?: string;
+  countryCode?: string;
+  languageCode?: string;
+  outputHierarchyLevel?: string;
   pageNumber?: number;
   pageSize?: number;
-  catalog?: string;
 } = {}): Promise<HPCatalogResponse> {
   return callHP<HPCatalogResponse>("catalogitems", {
-    locale: LOCALE,
-    country: COUNTRY,
+    catalogName: "Laptops",
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    outputHierarchyLevel: "Product",
     pageNumber: 1,
-    pageSize: 20,
+    pageSize: 1000,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getCatalogFacetFilters(opts: {
-  locale?: string;
-  country?: string;
-  catalog?: string;
+  catalogName?: string;
+  countryCode?: string;
+  languageCode?: string;
 } = {}): Promise<HPFacetFiltersResponse> {
   return callHP<HPFacetFiltersResponse>("catalogfacetfilters", {
-    locale: LOCALE,
-    country: COUNTRY,
+    catalogName: "Laptops",
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getItemsByFacetValues(opts: {
   facetValues: string[];
-  locale?: string;
-  country?: string;
+  catalogName?: string;
+  countryCode?: string;
+  languageCode?: string;
   pageNumber?: number;
   pageSize?: number;
 }): Promise<HPCatalogResponse> {
   return callHP<HPCatalogResponse>("itemsbyfacetvalues", {
-    locale: LOCALE,
-    country: COUNTRY,
+    catalogName: "Laptops",
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    outputHierarchyLevel: "Product",
     pageNumber: 1,
-    pageSize: 20,
+    pageSize: 1000,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getProductContent(
   productNumbers: string[],
-  opts: { locale?: string; country?: string } = {}
+  opts: { countryCode?: string; languageCode?: string } = {}
 ): Promise<HPProductContentResponse> {
   return callHP<HPProductContentResponse>("productcontent", {
     productNumbers,
-    locale: LOCALE,
-    country: COUNTRY,
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getProductImages(
   productNumbers: string[],
-  opts: { locale?: string } = {}
+  opts: { countryCode?: string; languageCode?: string } = {}
 ): Promise<HPImagesResponse> {
   return callHP<HPImagesResponse>("images", {
     productNumbers,
-    locale: LOCALE,
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getCompanions(
   productNumbers: string[],
-  opts: { locale?: string; country?: string } = {}
+  opts: { countryCode?: string; languageCode?: string } = {}
 ) {
   return callHP("companions", {
     productNumbers,
-    locale: LOCALE,
-    country: COUNTRY,
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getRichMedia(
   productNumbers: string[],
-  opts: { locale?: string } = {}
+  opts: { countryCode?: string; languageCode?: string } = {}
 ) {
-  return callHP("richmedia", { productNumbers, locale: LOCALE, ...opts });
+  return callHP("richmedia", {
+    productNumbers,
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
+    ...opts,
+  });
 }
 
 export async function getPLC(
   productNumbers: string[],
-  opts: { locale?: string; country?: string } = {}
+  opts: { countryCode?: string; languageCode?: string } = {}
 ) {
   return callHP("plc", {
     productNumbers,
-    locale: LOCALE,
-    country: COUNTRY,
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
 
 export async function getHierarchy(opts: {
-  locale?: string;
-  country?: string;
+  countryCode?: string;
+  languageCode?: string;
 } = {}) {
-  return callHP("hierarchy", { locale: LOCALE, country: COUNTRY, ...opts });
+  return callHP("hierarchy", {
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
+    ...opts,
+  });
 }
 
 export async function getItemPartnerDocs(
   productNumbers: string[],
-  opts: { locale?: string; country?: string } = {}
+  opts: { countryCode?: string; languageCode?: string } = {}
 ) {
   return callHP("itempartnerdocs", {
     productNumbers,
-    locale: LOCALE,
-    country: COUNTRY,
+    countryCode: COUNTRY_CODE,
+    languageCode: LANGUAGE_CODE,
+    requestor: REQUESTOR,
     ...opts,
   });
 }
@@ -310,25 +338,16 @@ export function mapHPItemToProduct(
  * Returns an empty array (not a throw) if the backend is unreachable.
  */
 export async function fetchCatalogProducts(opts: {
+  catalogName?: string;
   pageNumber?: number;
   pageSize?: number;
-  facetValues?: string[];
 } = {}): Promise<{ products: Product[]; total: number }> {
   try {
-    let catalogRes: HPCatalogResponse;
-
-    if (opts.facetValues?.length) {
-      catalogRes = await getItemsByFacetValues({
-        facetValues: opts.facetValues,
-        pageNumber: opts.pageNumber ?? 1,
-        pageSize: opts.pageSize ?? 20,
-      });
-    } else {
-      catalogRes = await getCatalogItems({
-        pageNumber: opts.pageNumber ?? 1,
-        pageSize: opts.pageSize ?? 20,
-      });
-    }
+    const catalogRes = await getCatalogItems({
+      catalogName: opts.catalogName ?? "Laptops",
+      pageNumber: opts.pageNumber ?? 1,
+      pageSize: opts.pageSize ?? 1000,
+    });
 
     const items = catalogRes.items ?? [];
     if (!items.length) return { products: [], total: 0 };

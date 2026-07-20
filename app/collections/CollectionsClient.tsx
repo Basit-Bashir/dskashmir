@@ -54,11 +54,13 @@ export default function CollectionsClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          locale: "en_IN",
-          country: "IN",
+          catalogName: "Laptops",
+          countryCode: "IN",
+          languageCode: "EN",
+          outputHierarchyLevel: "Product",
           pageNumber: newPage,
           pageSize: PAGE_SIZE,
-          ...(facetValues ? { facetValues } : {}),
+          requestor: "DSKASHMIR-PRO",
         }),
       });
 
@@ -75,12 +77,22 @@ export default function CollectionsClient({
           fetch("/api/hp/productcontent", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ productNumbers, locale: "en_IN", country: "IN" }),
+            body: JSON.stringify({
+              productNumbers,
+              countryCode: "IN",
+              languageCode: "EN",
+              requestor: "DSKASHMIR-PRO",
+            }),
           }).then((r) => r.json()),
           fetch("/api/hp/images", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ productNumbers, locale: "en_IN" }),
+            body: JSON.stringify({
+              productNumbers,
+              countryCode: "IN",
+              languageCode: "EN",
+              requestor: "DSKASHMIR-PRO",
+            }),
           }).then((r) => r.json()),
         ]);
 
