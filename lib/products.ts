@@ -1,6 +1,7 @@
 export type Product = {
   id: string;
   slug: string;
+  productNumber?: string; // HP Hermes product number — present for API-sourced products
   name: string;
   series: string;
   tagline: string;
