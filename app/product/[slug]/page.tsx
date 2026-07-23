@@ -24,17 +24,24 @@ async function resolveProduct(
 ): Promise<{ product: Product | null; catalog: Product[] }> {
   const { products: catalog } = await getCatalog();
 
-  const bySlug = catalog.find((p) => p.slug === slug) ?? null;
-  if (bySlug) return { product: bySlug, catalog };
+  const bySlug = catalog.find(
+    (p) => p.slug === slug || p.id.toLowerCase() === slug.toLowerCase() || p.productNumber?.toLowerCase() === slug.toLowerCase()
+  ) ?? null;
 
-  // HP product numbers are alphanumeric, often with dashes from URL encoding.
-  // Reconstruct the product number (e.g. "8ul47av-aba" → "8UL47AV#ABA")
-  const isHPNumber = /^[a-z0-9]+-[a-z0-9]+$/i.test(slug);
-  if (isHPNumber) {
-    const productNumber = slug.toUpperCase().replace(/-([a-z0-9]{3})$/i, "#$1");
-    const apiProduct = await fetchProductByNumber(productNumber);
-    if (apiProduct) return { product: apiProduct, catalog };
+  // Extract dynamic SKU from matched product or from slug
+  const rawSku =
+    bySlug?.productNumber ||
+    bySlug?.id ||
+    (slug.length >= 5 ? slug.toUpperCase().replace(/-([a-z0-9]{3})$/i, "#$1") : null);
+
+  if (rawSku) {
+    const detailedProduct = await fetchProductByNumber(rawSku);
+    if (detailedProduct) {
+      return { product: detailedProduct, catalog };
+    }
   }
+
+  if (bySlug) return { product: bySlug, catalog };
 
   return { product: null, catalog };
 }

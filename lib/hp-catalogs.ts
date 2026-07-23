@@ -1,13 +1,36 @@
 /**
- * Maps the site's internal product category (used by collection pills, etc.)
- * to the HP catalog(s) that back it. The storefront only has two live
- * catalogs today: "Laptops" and "Printers".
+ * Dynamic HP Catalogs supported by the HP Hermes PDB backend.
  */
 
-export type HPCatalogName = "Laptops" | "Printers";
+export type HPCatalogName =
+  | "Printers"
+  | "Desktops"
+  | "Laptops"
+  | "Storage"
+  | "Solutions"
+  | "Software"
+  | "Services"
+  | "Scanners"
+  | "POS"
+  | "Monitors"
+  | "Supplies"
+  | "Industries"
+  | "HyperX"
+  | "Entertainment"
+  | "Accessories"
+  | "Desktops_Business"
+  | "Workstations"
+  | "Desktops_Home"
+  | "Laptops_Home"
+  | "DesignJet_Printers"
+  | "Industrial_Printers"
+  | "Carepacks"
+  | "Chromebooks"
+  | "Ink_Toner_Cartridges"
+  | "Printer_Supplies"
+  | "Paper";
 
-export function catalogsForCategory(category?: string): HPCatalogName[] {
-  if (category === "printer" || category === "copier") return ["Printers"];
-  if (!category || category === "all") return ["Laptops", "Printers"];
-  return ["Laptops"];
+export function catalogsForCategory(category?: string): string[] {
+  if (!category || category === "all") return ["Laptops", "Printers", "Desktops"];
+  return [category];
 }

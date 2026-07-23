@@ -13,16 +13,16 @@ interface ProductPageClientProps {
   product: Product;
   related: Product[];
 }
-
 export default function ProductPageClient({ product, related }: ProductPageClientProps) {
+  console.log(product);
   const { addItem } = useCart();
 
-  const [activeImg,    setActiveImg]    = useState(0);
-  const [activeColor,  setActiveColor]  = useState(0);
+  const [activeImg, setActiveImg] = useState(0);
+  const [activeColor, setActiveColor] = useState(0);
   const [activeConfig, setActiveConfig] = useState(0);
-  const [activeTab,    setActiveTab]    = useState<"specs" | "inbox" | "reviews">("specs");
-  const [qty,          setQty]          = useState(1);
-  const [added,        setAdded]        = useState(false);
+  const [activeTab, setActiveTab] = useState<"specs" | "inbox" | "reviews">("specs");
+  const [qty, setQty] = useState(1);
+  const [added, setAdded] = useState(false);
 
   const currentPrice = product.configs[activeConfig]?.price ?? product.price;
 
@@ -250,7 +250,7 @@ export default function ProductPageClient({ product, related }: ProductPageClien
               <div className="flex items-center gap-6 mt-8 pt-8 border-t border-hp-light">
                 {[
                   { icon: Shield, text: "2-yr warranty" },
-                  { icon: Truck,  text: "Free shipping" },
+                  { icon: Truck, text: "Free shipping" },
                   { icon: RotateCcw, text: "30-day returns" },
                 ].map(({ icon: Icon, text }) => (
                   <div key={text} className="flex items-center gap-2">
@@ -265,21 +265,24 @@ export default function ProductPageClient({ product, related }: ProductPageClien
           {/* Tabs */}
           <div className="mt-16 border-t border-hp-light">
             <div className="flex gap-0 border-b border-hp-light">
-              {(["specs", "inbox", "reviews"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    "px-8 py-4 text-[11px] tracking-[0.12em] uppercase font-medium",
-                    "transition-all duration-200 border-b-2",
-                    activeTab === tab
-                      ? "border-hp-blue text-hp-blue"
-                      : "border-transparent text-hp-gray hover:text-hp-black"
-                  )}
-                >
-                  {tab === "inbox" ? "In the Box" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
+              {(["specs", "inbox", "docs", "reviews"] as const).map((tab) => {
+                if (tab === "docs" && (!product.documents || product.documents.length === 0)) return null;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={cn(
+                      "px-8 py-4 text-[11px] tracking-[0.12em] uppercase font-medium",
+                      "transition-all duration-200 border-b-2",
+                      activeTab === tab
+                        ? "border-hp-blue text-hp-blue"
+                        : "border-transparent text-hp-gray hover:text-hp-black"
+                    )}
+                  >
+                    {tab === "inbox" ? "In the Box" : tab === "docs" ? "Documents" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="py-8 md:py-12 max-w-2xl">
@@ -287,14 +290,43 @@ export default function ProductPageClient({ product, related }: ProductPageClien
                 <table className="w-full">
                   <caption className="sr-only">Product Specifications</caption>
                   <tbody>
-                    {product.specs.map(({ label, value }) => (
-                      <tr key={label} className="border-b border-hp-light last:border-0">
+                    {product.productNumber && (
+                      <tr className="border-b border-hp-light">
+                        <th scope="row" className="py-3.5 text-sm font-medium text-hp-black w-40 pr-8 text-left">SKU / Product #</th>
+                        <td className="py-3.5 text-sm font-light text-hp-gray">{product.productNumber}</td>
+                      </tr>
+                    )}
+                    {product.plcStatus && (
+                      <tr className="border-b border-hp-light">
+                        <th scope="row" className="py-3.5 text-sm font-medium text-hp-black w-40 pr-8 text-left">Status</th>
+                        <td className="py-3.5 text-sm font-light text-hp-gray">{product.plcStatus}</td>
+                      </tr>
+                    )}
+                    {product.specs.map(({ label, value }, i) => (
+                      <tr key={`${label}-${i}`} className="border-b border-hp-light last:border-0">
                         <th scope="row" className="py-3.5 text-sm font-medium text-hp-black w-40 pr-8 text-left">{label}</th>
                         <td className="py-3.5 text-sm font-light text-hp-gray">{value}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              )}
+              {activeTab === ("docs" as any) && product.documents && (
+                <ul className="space-y-3">
+                  {product.documents.map((doc, idx) => (
+                    <li key={idx} className="flex items-center justify-between py-2 border-b border-hp-light">
+                      <span className="text-sm font-light text-hp-black">{doc.title || "Product Datasheet"}</span>
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-hp-blue underline font-medium hover:text-hp-blueDark"
+                      >
+                        Download PDF
+                      </a>
+                    </li>
+                  ))}
+                </ul>
               )}
               {activeTab === "inbox" && (
                 <ul className="space-y-3">

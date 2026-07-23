@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = process.env.HP_BACKEND_URL || "http://localhost:3000";
+const BACKEND = process.env.HP_BACKEND_URL || "https://api.dskashmir.com";
 
 type Ctx = { params: Promise<{ path: string[] }> };
 

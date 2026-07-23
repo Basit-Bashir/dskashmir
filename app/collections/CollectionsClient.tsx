@@ -7,19 +7,40 @@ import type { Product } from "@/lib/products";
 import { fetchCatalogProductsClient } from "@/lib/hp-client";
 
 const CATEGORIES = [
-  { key: "all",       label: "All" },
-  { key: "ultrabook", label: "Laptops" },
-  { key: "business",  label: "Business" },
-  { key: "printer",   label: "Printers" },
-  { key: "copier",    label: "Copiers" },
-  { key: "accessory", label: "Accessories" },
+  { key: "all", label: "All" },
+  { key: "Printers", label: "Printers" },
+  { key: "Desktops", label: "Desktops" },
+  { key: "Laptops", label: "Laptops" },
+  { key: "Storage", label: "Storage" },
+  { key: "Solutions", label: "Solutions" },
+  { key: "Software", label: "Software" },
+  { key: "Services", label: "Services" },
+  { key: "Scanners", label: "Scanners" },
+  { key: "POS", label: "POS" },
+  { key: "Monitors", label: "Monitors" },
+  { key: "Supplies", label: "Supplies" },
+  { key: "Industries", label: "Industries" },
+  { key: "HyperX", label: "HyperX" },
+  { key: "Entertainment", label: "Entertainment" },
+  { key: "Accessories", label: "Accessories" },
+  { key: "Desktops_Business", label: "Desktops Business" },
+  { key: "Workstations", label: "Workstations" },
+  { key: "Desktops_Home", label: "Desktops Home" },
+  { key: "Laptops_Home", label: "Laptops Home" },
+  { key: "DesignJet_Printers", label: "DesignJet Printers" },
+  { key: "Industrial_Printers", label: "Industrial Printers" },
+  { key: "Carepacks", label: "Carepacks" },
+  { key: "Chromebooks", label: "Chromebooks" },
+  { key: "Ink_Toner_Cartridges", label: "Ink & Toner Cartridges" },
+  { key: "Printer_Supplies", label: "Printer Supplies" },
+  { key: "Paper", label: "Paper" },
 ];
 
 const SORT_OPTIONS = [
-  { value: "featured",   label: "Featured" },
-  { value: "price-asc",  label: "Price: Low to High" },
+  { value: "featured", label: "Featured" },
+  { value: "price-asc", label: "Price: Low to High" },
   { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating",     label: "Top Rated" },
+  { value: "rating", label: "Top Rated" },
 ];
 
 interface Props {
@@ -32,28 +53,28 @@ export default function CollectionsClient({
   totalCount,
 }: Props) {
   const [activeCategory, setActiveCategory] = useState("all");
-  const [sortBy, setSortBy]                 = useState("featured");
-  const [products, setProducts]             = useState<Product[]>(initialProducts);
-  const [total, setTotal]                   = useState(totalCount);
-  const [page, setPage]                     = useState(1);
-  const [isPending, startTransition]        = useTransition();
+  const [sortBy, setSortBy] = useState("featured");
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [total, setTotal] = useState(totalCount);
+  const [page, setPage] = useState(1);
+  const [isPending, startTransition] = useTransition();
 
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  function loadPage(newPage: number, category: string) {
+  function loadPage(newPage: number, categoryKey: string) {
     startTransition(async () => {
+      const isAll = categoryKey === "all";
       const { products: mapped, total: newTotal } = await fetchCatalogProductsClient({
-        category,
+        category: isAll ? "all" : undefined,
+        catalogName: isAll ? undefined : categoryKey,
         pageNumber: newPage,
         pageSize: PAGE_SIZE,
       });
 
-      if (mapped.length) {
-        setProducts(mapped);
-        setTotal(newTotal);
-        setPage(newPage);
-      }
+      setProducts(mapped);
+      setTotal(newTotal);
+      setPage(newPage);
     });
   }
 
