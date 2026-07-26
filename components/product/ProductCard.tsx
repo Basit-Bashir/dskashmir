@@ -93,3 +93,4 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
     </motion.div>
   );
 }
+

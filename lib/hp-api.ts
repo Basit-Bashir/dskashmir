@@ -138,7 +138,7 @@ async function callHP<T>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-    cache: "no-store",
+    next: { revalidate: 3600 },
   });
 
   if (!res.ok) {
@@ -594,22 +594,39 @@ async function fetchFromCatalog(
 
     const productNumbers = items.map((i) => i.productNumber);
 
-    const [contentRes, imagesRes] = await Promise.allSettled([
-      getProductContent(productNumbers),
-      getProductImages(productNumbers),
+    // Batch chunk to max 50 SKUs per request to avoid backend payload timeouts
+    const BATCH_SIZE = 50;
+    const contentPromises: Promise<HPProductContentResponse>[] = [];
+    const imagesPromises: Promise<HPImagesResponse>[] = [];
+
+    for (let i = 0; i < productNumbers.length; i += BATCH_SIZE) {
+      const chunk = productNumbers.slice(i, i + BATCH_SIZE);
+      contentPromises.push(getProductContent(chunk));
+      imagesPromises.push(getProductImages(chunk));
+    }
+
+    const [contentResults, imagesResults] = await Promise.all([
+      Promise.allSettled(contentPromises),
+      Promise.allSettled(imagesPromises),
     ]);
 
-    const contentMap = new Map<string, HPProductContent>(
-      contentRes.status === "fulfilled"
-        ? (contentRes.value.products ?? []).map((p) => [p.productNumber, p])
-        : []
-    );
+    const contentMap = new Map<string, HPProductContent>();
+    for (const res of contentResults) {
+      if (res.status === "fulfilled" && res.value.products) {
+        for (const p of res.value.products) {
+          contentMap.set(p.productNumber, p);
+        }
+      }
+    }
 
-    const imagesMap = new Map<string, HPImage[]>(
-      imagesRes.status === "fulfilled"
-        ? (imagesRes.value.products ?? []).map((p) => [p.productNumber, p.images])
-        : []
-    );
+    const imagesMap = new Map<string, HPImage[]>();
+    for (const res of imagesResults) {
+      if (res.status === "fulfilled" && res.value.products) {
+        for (const p of res.value.products) {
+          imagesMap.set(p.productNumber, p.images);
+        }
+      }
+    }
 
     const products = items.map((item) =>
       mapHPItemToProduct(
@@ -655,6 +672,44 @@ export async function fetchCatalogProducts(opts: {
     catalogNames.map((name) => fetchFromCatalog(name, pageNumber, perCatalogSize))
   );
 
+  return {
+    products: results.flatMap((r) => r.products).slice(0, pageSize),
+    total: results.reduce((sum, r) => sum + r.total, 0),
+  };
+}
+
+/**
+ * Fast, lightweight fetch of catalog items without retrieving full specs and images for every product.
+ */
+export async function fetchCatalogSummary(opts: {
+  category?: string;
+  catalogName?: string;
+  pageNumber?: number;
+  pageSize?: number;
+} = {}): Promise<{ products: Product[]; total: number }> {
+  const catalogNames = opts.catalogName ? [opts.catalogName] : catalogsForCategory(opts.category);
+  const pageNumber = opts.pageNumber ?? 1;
+  const pageSize = opts.pageSize ?? 1000;
+
+  const summaryPromises = catalogNames.map(async (name) => {
+    try {
+      const res = await getCatalogItems({ catalogName: name, pageNumber, pageSize });
+      let items = res.items ?? [];
+      if (!items.length && res.hierarchyNodes) {
+        items = Object.values(res.hierarchyNodes).map((node) => ({
+          productNumber: node.productNumber,
+          shortName: node.hierarchyName,
+          longName: node.hierarchyName,
+        }));
+      }
+      const products = items.map((item) => mapHPItemToProduct(item));
+      return { products, total: res.totalItemCount ?? res.totalResults ?? products.length };
+    } catch {
+      return { products: [], total: 0 };
+    }
+  });
+
+  const results = await Promise.all(summaryPromises);
   return {
     products: results.flatMap((r) => r.products).slice(0, pageSize),
     total: results.reduce((sum, r) => sum + r.total, 0),

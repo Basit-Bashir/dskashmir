@@ -1,7 +1,11 @@
-"use client";
-
+import { Metadata } from "next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+
+export const metadata: Metadata = {
+  title: "Press & Media — DSK",
+  description: "Official press releases, media kits, and brand announcements from DSK HP Store.",
+};
 
 export default function PressPage() {
   return (

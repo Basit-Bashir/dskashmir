@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { fetchCatalogProducts, fetchProductByNumber } from "@/lib/hp-api";
+import { fetchCatalogSummary, fetchProductByNumber } from "@/lib/hp-api";
 import ProductPageClient from "./ProductPageClient";
 import type { Product } from "@/lib/products";
 
@@ -11,18 +11,12 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Memoized per-request so generateMetadata and the page component share one fetch.
-const getCatalog = cache(() => fetchCatalogProducts({ pageSize: 1000 }));
+// Lightweight catalog lookup memoized per request
+const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 1000 }));
 
-/** Resolve a product from a URL slug.
- *  1. Match against the live HP catalog by slug.
- *  2. If not found but slug looks like an HP product number, hit the HP API directly.
- *  3. Returns null if nothing matches.
- */
-async function resolveProduct(
-  slug: string
-): Promise<{ product: Product | null; catalog: Product[] }> {
-  const { products: catalog } = await getCatalog();
+/** Memoized product resolver so generateMetadata and ProductPage share work */
+const resolveProduct = cache(async (slug: string): Promise<{ product: Product | null; related: Product[] }> => {
+  const { products: catalog } = await getCatalogSummary();
 
   const bySlug = catalog.find(
     (p) => p.slug === slug || p.id.toLowerCase() === slug.toLowerCase() || p.productNumber?.toLowerCase() === slug.toLowerCase()
@@ -34,17 +28,19 @@ async function resolveProduct(
     bySlug?.id ||
     (slug.length >= 5 ? slug.toUpperCase().replace(/-([a-z0-9]{3})$/i, "#$1") : null);
 
+  let product: Product | null = null;
   if (rawSku) {
-    const detailedProduct = await fetchProductByNumber(rawSku);
-    if (detailedProduct) {
-      return { product: detailedProduct, catalog };
-    }
+    product = await fetchProductByNumber(rawSku);
   }
 
-  if (bySlug) return { product: bySlug, catalog };
+  if (!product && bySlug) {
+    product = bySlug;
+  }
 
-  return { product: null, catalog };
-}
+  const related = catalog.filter((p) => p.id !== (product?.id || bySlug?.id)).slice(0, 4);
+
+  return { product, related };
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -80,10 +76,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const { product, catalog } = await resolveProduct(slug);
+  const { product, related } = await resolveProduct(slug);
   if (!product) notFound();
-
-  const related = catalog.filter((p) => p.id !== product.id).slice(0, 4);
 
   const jsonLd = {
     "@context": "https://schema.org",

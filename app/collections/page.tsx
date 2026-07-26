@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CollectionsClient from "./CollectionsClient";
-import { fetchCatalogProducts } from "@/lib/hp-api";
+import { fetchCatalogSummary } from "@/lib/hp-api";
 
 export const metadata: Metadata = {
   title: "Shop All HP Collections — Laptops, Printers & Accessories",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export default async function CollectionsPage() {
-  const { products, total } = await fetchCatalogProducts({
+  const { products, total } = await fetchCatalogSummary({
     pageNumber: 1,
     pageSize: 30,
   });
