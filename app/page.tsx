@@ -1,14 +1,14 @@
 import { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import TrustBar from "@/components/sections/TrustBar";
 import ProductCard from "@/components/product/ProductCard";
 import HeroSection from "@/components/sections/HeroSection";
-import PartnerMarquee from "@/components/sections/PartnerMarquee";
+import NewArrivalsRail from "@/components/sections/NewArrivalsRail";
+import CategoryTiles from "@/components/sections/CategoryTiles";
 import EditorialBanner from "@/components/sections/EditorialBanner";
-import Counter from "@/components/ui/Counter";
+import StoreLocation from "@/components/sections/StoreLocation";
 import { fetchCatalogProducts } from "@/lib/hp-api";
 
 export const metadata: Metadata = {
@@ -18,8 +18,13 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const { products } = await fetchCatalogProducts({ pageSize: 6 });
-  const FEATURED = products.slice(0, 3);
+  const BEST_SELLERS = products.slice(0, 3);
   const NEW_ARRIVALS = products.slice(3, 6);
+  // Prefer a laptop for the hero visual (matches the "Shop Laptops" CTA);
+  // fall back to whichever product has an image.
+  const heroProduct =
+    products.find((p) => p.category === "ultrabook" && p.images.length > 0) ??
+    products.find((p) => p.images.length > 0);
 
   return (
     <>
@@ -27,40 +32,40 @@ export default async function HomePage() {
 
       <main>
         {/* Hero */}
-        <HeroSection />
+        <HeroSection heroImage={heroProduct?.images[0]} heroName={heroProduct?.name} />
 
         {/* Trust bar */}
         <TrustBar />
 
-        {/* Partner Logos Marquee */}
-        <PartnerMarquee />
+        {/* New Arrivals — horizontal rail */}
+        <NewArrivalsRail products={NEW_ARRIVALS} />
 
-        {/* Featured Products */}
-        <section className="section-pad py-20 md:py-28">
+        {/* Category tiles */}
+        <CategoryTiles />
+
+        {/* Best Sellers */}
+        <section className="section-pad py-14 md:py-16">
           <div className="max-content">
-            <div className="flex items-end justify-between mb-12">
-              <div>
-                <span className="eyebrow">— Featured —</span>
-                <h2 className="section-title">Curated for Performance</h2>
-              </div>
+            <div className="flex items-end justify-between mb-6">
+              <h2 className="text-xl md:text-2xl font-medium tracking-tight text-hp-black">
+                Best Sellers
+              </h2>
               <Link
                 href="/collections"
-                className="hidden md:flex items-center gap-2 text-[11px] tracking-[0.15em]
-                           uppercase text-hp-black border-b border-hp-black pb-0.5
-                           hover:text-hp-blue hover:border-hp-blue transition-colors duration-200"
+                className="hidden sm:inline-flex btn-pill-outline"
               >
-                View All <ArrowRight size={12} strokeWidth={2} />
+                View All
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {FEATURED.map((product, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {BEST_SELLERS.map((product, i) => (
                 <ProductCard key={product.id} product={product} index={i} />
               ))}
             </div>
 
-            <div className="mt-8 text-center md:hidden">
-              <Link href="/collections" className="btn-ghost inline-block">
+            <div className="mt-8 text-center sm:hidden">
+              <Link href="/collections" className="btn-pill-outline inline-block">
                 View All Products
               </Link>
             </div>
@@ -70,45 +75,8 @@ export default async function HomePage() {
         {/* Editorial Banner */}
         <EditorialBanner />
 
-        {/* More Products */}
-        <section className="section-pad py-20 md:py-28 bg-hp-cream">
-          <div className="max-content">
-            <div className="flex items-end justify-between mb-12">
-              <div>
-                <span className="eyebrow">— New Arrivals —</span>
-                <h2 className="section-title">Just In</h2>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {NEW_ARRIVALS.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Stats */}
-        <section className="section-pad py-16 md:py-20 bg-hp-black text-hp-white">
-          <div className="max-content">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              {[
-                { to: 20, suffix: "+", label: "States" },
-                { to: 100, suffix: "K+", label: "Customers" },
-                { to: 10, suffix: "+", label: "Years of Innovation" },
-                { to: 1, prefix: "#", label: "Business Laptops" },
-              ].map(({ label, ...counterProps }) => (
-                <div key={label}>
-                  <div className="font-serif text-5xl md:text-6xl font-light text-hp-white mb-2">
-                    <Counter {...counterProps} />
-                  </div>
-                  <p className="text-[11px] tracking-[0.2em] uppercase text-hp-white/40 font-light">
-                    {label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Store Location */}
+        <StoreLocation />
       </main>
 
       <Footer />

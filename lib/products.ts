@@ -27,7 +27,6 @@ export type Product = {
   companions?: Array<{ sku: string; name?: string; category?: string }>;
   documents?: Array<{ title?: string; url: string; format?: string; type?: string }>;
   hierarchyPath?: string[];
-  rating: number;
-  reviewCount: number;
   inBox: string[];
+  highlights?: string[];
 };

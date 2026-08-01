@@ -4,6 +4,7 @@ import { cache } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { fetchCatalogSummary, fetchProductByNumber } from "@/lib/hp-api";
+import { extractSkuFromSlug } from "@/lib/hp-mapping";
 import ProductPageClient from "./ProductPageClient";
 import type { Product } from "@/lib/products";
 
@@ -11,33 +12,55 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// Lightweight catalog lookup memoized per request
-const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 1000 }));
+// Small, cross-category sample used only for "related products" and as a
+// last-resort slug lookup — the fast path below resolves the SKU straight
+// from the slug and never needs to scan the catalog.
+const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 64 }));
 
 /** Memoized product resolver so generateMetadata and ProductPage share work */
 const resolveProduct = cache(async (slug: string): Promise<{ product: Product | null; related: Product[] }> => {
-  const { products: catalog } = await getCatalogSummary();
+  const cleanSlug = decodeURIComponent(slug).trim();
 
-  const bySlug = catalog.find(
-    (p) => p.slug === slug || p.id.toLowerCase() === slug.toLowerCase() || p.productNumber?.toLowerCase() === slug.toLowerCase()
-  ) ?? null;
-
-  // Extract dynamic SKU from matched product or from slug
-  const rawSku =
-    bySlug?.productNumber ||
-    bySlug?.id ||
-    (slug.length >= 5 ? slug.toUpperCase().replace(/-([a-z0-9]{3})$/i, "#$1") : null);
+  const candidateSkus: string[] = [];
+  const embeddedSku = extractSkuFromSlug(cleanSlug);
+  if (embeddedSku) candidateSkus.push(embeddedSku);
+  // Back-compat: a bare SKU used directly as the slug (e.g. /product/58R10A)
+  if (!candidateSkus.includes(cleanSlug.toUpperCase())) {
+    candidateSkus.push(cleanSlug.toUpperCase());
+  }
 
   let product: Product | null = null;
-  if (rawSku) {
-    product = await fetchProductByNumber(rawSku);
+  for (const skuToTry of candidateSkus) {
+    if (skuToTry.length < 3) continue;
+    product = await fetchProductByNumber(skuToTry);
+    if (product) break;
   }
 
-  if (!product && bySlug) {
-    product = bySlug;
+  // Last resort: scan the (small) catalog sample for a matching slug/id.
+  if (!product) {
+    const { products: catalog } = await getCatalogSummary();
+    const bySlug = catalog.find(
+      (p) =>
+        p.slug.toLowerCase() === cleanSlug.toLowerCase() ||
+        p.id.toLowerCase() === cleanSlug.toLowerCase() ||
+        p.productNumber?.toLowerCase() === cleanSlug.toLowerCase()
+    );
+    if (bySlug?.productNumber) {
+      product = await fetchProductByNumber(bySlug.productNumber);
+    }
+    if (!product && bySlug) {
+      product = bySlug;
+    }
   }
 
-  const related = catalog.filter((p) => p.id !== (product?.id || bySlug?.id)).slice(0, 4);
+  const { products: sample } = await getCatalogSummary();
+
+  if (!product) {
+    return { product: null, related: sample.slice(0, 4) };
+  }
+
+  const sameCategory = sample.filter((p) => p.id !== product!.id && p.category === product!.category);
+  const related = (sameCategory.length >= 4 ? sameCategory : sample.filter((p) => p.id !== product!.id)).slice(0, 4);
 
   return { product, related };
 });
@@ -92,11 +115,6 @@ export default async function ProductPage({ params }: Props) {
       priceCurrency: "INR",
       price: product.price,
       availability: "https://schema.org/InStock",
-    },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: product.rating,
-      reviewCount: product.reviewCount,
     },
   };
 

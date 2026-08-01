@@ -57,6 +57,30 @@ body {
            hover:border-hp-gold hover:text-hp-gold cursor-pointer;
   }
 
+  /* Compact pill buttons (homepage) — small, quiet, fully rounded */
+  .btn-pill {
+    @apply inline-flex items-center justify-center gap-1.5 bg-hp-black text-white
+           text-[12px] font-medium tracking-[0.02em] uppercase px-4 py-2 rounded-full cursor-pointer
+           border border-hp-black transition-colors duration-200 hover:bg-white hover:text-hp-black;
+  }
+  .btn-pill-outline {
+    @apply inline-flex items-center justify-center gap-1.5 bg-transparent text-hp-black
+           text-[12px] font-medium tracking-[0.02em] uppercase px-4 py-2 rounded-full cursor-pointer
+           border border-hp-black/60 transition-colors duration-200 hover:bg-hp-black hover:text-white;
+  }
+  .btn-pill-white {
+    @apply inline-flex items-center justify-center gap-1.5 bg-white text-hp-black
+           text-[12px] font-medium tracking-[0.02em] uppercase px-4 py-2 rounded-full cursor-pointer
+           border border-white transition-colors duration-200 hover:bg-white/80;
+  }
+
+  /* Hide scrollbar on horizontal product rails while staying scrollable */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
   /* Section layout */
   .section-pad   { @apply px-6 md:px-10 lg:px-16 xl:px-20; }
   .max-content   { @apply max-w-[1400px] mx-auto; }

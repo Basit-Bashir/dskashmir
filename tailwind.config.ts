@@ -19,6 +19,11 @@ const config: Config = {
           gray:    "#888580",
           gold:    "#C8A96E",
         },
+        // Warm, muted pastel palette for color-block sections (Allbirds-style)
+        sage:  { DEFAULT: "#B7C4AE", dark: "#5C6E56" },
+        sand:  { DEFAULT: "#EDE2CE", dark: "#8A7B57" },
+        sky:   { DEFAULT: "#CBDCE0", dark: "#4C6D74" },
+        clay:  { DEFAULT: "#E7CCBC", dark: "#8C5A3E" },
       },
       fontFamily: {
         serif: ["var(--font-cormorant)", "Georgia", "serif"],

@@ -7,6 +7,12 @@
 
 import type { Product } from "./products";
 import { catalogsForCategory } from "./hp-catalogs";
+import {
+  parseProductContentEntry,
+  parseImagesEntry,
+  mapItemToProduct,
+  type ParsedContent,
+} from "./hp-mapping";
 
 const BACKEND = process.env.HP_BACKEND_URL || "https://api.dskashmir.com/hp";
 const COUNTRY_CODE = "IN";
@@ -48,6 +54,8 @@ export interface HPCatalogResponse {
     }
   >;
   totalItemCount?: number;
+  /** Required on the request when pageNumber > 1 — see getCatalogItems. */
+  catalogReference?: string;
 }
 
 export interface HPSpec {
@@ -63,6 +71,7 @@ export interface HPProductContent {
   longDescription?: string;
   marketingDescription?: string;
   specifications?: HPSpec[];
+  highlights?: string[];
   productLine?: string;
   category?: string;
   plcStatus?: string;
@@ -156,6 +165,9 @@ async function callHP<T>(
 /**
  * 1. POST /hp/catalogitems
  * Body: { catalogName: "LAPTOPS" | "PRINTERS", countryCode: "IN", languageCode: "EN", outputHierarchyLevel: "Product", pageNumber: 1, pageSize: 1000, requestor: "DSKASHMIR-PRO" }
+ *
+ * HP rejects `pageNumber > 1` unless the `catalogReference` from that
+ * catalog's page-1 response is echoed back in the request.
  */
 export async function getCatalogItems(opts: {
   catalogName?: string;
@@ -164,17 +176,23 @@ export async function getCatalogItems(opts: {
   outputHierarchyLevel?: string;
   pageNumber?: number;
   pageSize?: number;
+  catalogReference?: string;
 } = {}): Promise<HPCatalogResponse> {
   const catalogName = (opts.catalogName || "LAPTOPS").toUpperCase();
-  return callHP<HPCatalogResponse>("catalogitems", {
+  const pageNumber = opts.pageNumber ?? 1;
+  const payload: Record<string, unknown> = {
     catalogName,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
     outputHierarchyLevel: opts.outputHierarchyLevel || "Product",
-    pageNumber: opts.pageNumber ?? 1,
+    pageNumber,
     pageSize: opts.pageSize ?? 1000,
     requestor: REQUESTOR,
-  });
+  };
+  if (pageNumber > 1 && opts.catalogReference) {
+    payload.catalogReference = opts.catalogReference;
+  }
+  return callHP<HPCatalogResponse>("catalogitems", payload);
 }
 
 /**
@@ -191,26 +209,7 @@ export async function getProductContent(
   } = {}
 ): Promise<HPProductContentResponse> {
   interface APIProductContentResponse {
-    products?: Record<
-      string,
-      {
-        sku: string;
-        plcStatus?: string;
-        status?: boolean;
-        chunks?: Record<
-          string,
-          {
-            group: string;
-            details?: Array<{
-              name: string;
-              tag: string;
-              value: string;
-            }>;
-          }
-        >;
-        hierarchy?: any[];
-      }
-    >;
+    products?: Record<string, any>;
   }
 
   const payload: Record<string, unknown> = {
@@ -227,48 +226,18 @@ export async function getProductContent(
   const data = await callHP<APIProductContentResponse>("productcontent", payload);
 
   const productsArray: HPProductContent[] = Object.entries(data.products || {}).map(
-    ([skuKey, prod]: [string, any]) => {
-      const specifications: HPSpec[] = [];
-      let name = skuKey;
-      let shortDescription = "";
-      let longDescription = "";
-
-      const seenSpecKeys = new Set<string>();
-      if (prod.chunks) {
-        for (const chunk of Object.values(prod.chunks) as any[]) {
-          if (chunk.details) {
-            for (const detail of chunk.details) {
-              const specKey = `${detail.name}:${detail.value}`;
-              if (!seenSpecKeys.has(specKey)) {
-                seenSpecKeys.add(specKey);
-                specifications.push({
-                  name: detail.name,
-                  value: detail.value,
-                  groupName: chunk.group,
-                });
-              }
-
-              if (detail.tag === "custfacingdes" || detail.tag === "prodname" || detail.tag === "prodlongname") {
-                name = detail.value;
-              }
-              if (detail.tag === "proddes_overview_short") {
-                shortDescription = detail.value;
-              }
-              if (detail.tag === "proddes_overview_medium") {
-                longDescription = detail.value;
-              }
-            }
-          }
-        }
-      }
-
+    ([skuKey, prod]) => {
+      const parsed: ParsedContent = parseProductContentEntry(skuKey, prod);
       return {
-        productNumber: skuKey,
-        name,
-        shortDescription,
-        longDescription,
-        specifications,
-        plcStatus: prod.plcStatus,
+        productNumber: parsed.productNumber,
+        name: parsed.name,
+        shortDescription: parsed.shortDescription,
+        longDescription: parsed.longDescription,
+        specifications: parsed.specifications,
+        highlights: parsed.highlights,
+        category: parsed.category,
+        productLine: parsed.series,
+        plcStatus: parsed.plcStatus,
       };
     }
   );
@@ -328,44 +297,10 @@ export async function getProductImages(
     requestor: REQUESTOR,
   });
 
-  const productsArray = Object.entries(data.products || {}).map(
-    ([skuKey, prod]: [string, any]) => {
-      const productImages: HPImage[] = [];
-      const seenUrls = new Set<string>();
-
-      if (prod.images) {
-        const targetGroups = [
-          "IMAGES_LARGE",
-          "JPG_IMAGES_LARGE",
-          "IMAGES_MEDIUM",
-          "JPG_IMAGES_MEDIUM",
-          "PRODUCT_IN_USE_MEDIUM",
-        ];
-        for (const grp of prod.images) {
-          if (targetGroups.includes(grp.group) && grp.details) {
-            for (const d of grp.details) {
-              const url = d.imageUrlHttps || d.imageUrlHttp;
-              if (url && !seenUrls.has(url)) {
-                seenUrls.add(url);
-                productImages.push({
-                  url,
-                  type: d.type || "jpg",
-                  width: d.pixelWidth ? parseInt(d.pixelWidth, 10) : undefined,
-                  height: d.pixelHeight ? parseInt(d.pixelHeight, 10) : undefined,
-                  altText: d.fullTitle,
-                });
-              }
-            }
-          }
-        }
-      }
-
-      return {
-        productNumber: skuKey,
-        images: productImages,
-      };
-    }
-  );
+  const productsArray = Object.entries(data.products || {}).map(([skuKey, prod]) => ({
+    productNumber: skuKey,
+    images: parseImagesEntry(prod),
+  }));
 
   return { products: productsArray };
 }
@@ -487,90 +422,35 @@ export async function getItemsByFacetValues(opts: {
 
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function mapCategory(cat?: string): Product["category"] {
-  const c = (cat || "").toLowerCase();
-  if (c.includes("gaming") || c.includes("omen")) return "gaming";
-  if (c.includes("elite") || c.includes("probook") || c.includes("business"))
-    return "business";
-  if (c.includes("creator") || c.includes("envy") || c.includes("zbook"))
-    return "creator";
-  if (c.includes("laser") || c.includes("smart tank") || c.includes("officejet"))
-    return "printer";
-  if (c.includes("copier") || c.includes("mfp") || c.includes("pagewide"))
-    return "copier";
-  if (c.includes("dock") || c.includes("mouse") || c.includes("keyboard") || c.includes("accessory"))
-    return "accessory";
-  if (c.includes("desktop") || c.includes("all-in-one") || c.includes("tower"))
-    return "desktop";
-  return "ultrabook";
-}
-
 /**
  * Maps a raw HP catalog item (plus optional enriched content & images) into
  * the app's Product shape. USD prices are converted to INR at ~84.
+ * `catalogName` (e.g. "Printers", "Desktops") is the primary category signal —
+ * the Hermes catalog response never includes a category field on the item itself.
  */
 export function mapHPItemToProduct(
   item: HPCatalogItem,
   content?: HPProductContent,
-  images?: HPImage[]
+  images?: HPImage[],
+  catalogName?: string
 ): Product {
-  const USD_TO_INR = 84;
-  const name = content?.name || item.longName || item.shortName || item.productNumber;
-  const unitPrice = item.price?.unitPrice ?? 0;
-  const listPrice = item.price?.listPrice;
-  let price = Math.round(unitPrice * USD_TO_INR);
-  let originalPrice = listPrice ? Math.round(listPrice * USD_TO_INR) : undefined;
-
-  const category = mapCategory(item.category || content?.category);
-
-  if (price === 0) {
-    let hash = 0;
-    const s = item.productNumber || "";
-    for (let i = 0; i < s.length; i++) {
-      hash = s.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const isPrinter = category === "printer" || category === "copier";
-    const base = isPrinter ? 12000 : 45000;
-    const variance = Math.abs(hash % 15) * 2000;
-    price = base + variance + 999;
-    if (hash % 2 === 0) {
-      originalPrice = Math.round(price * 1.15);
-    }
-  }
-
-  const specs: Product["specs"] =
-    content?.specifications?.map((s) => ({ label: s.name, value: s.value, groupName: s.groupName })) ?? [];
-
-  const productImages = images?.map((img) => img.url) ?? [];
-
-  return {
-    id: item.productNumber,
-    slug: slugify(name) || item.productNumber.replace(/[^a-z0-9]/gi, "-").toLowerCase(),
-    productNumber: item.productNumber,
-    name,
-    series: content?.productLine || item.productLine || "HP",
-    tagline: content?.shortDescription ?? "",
-    description:
-      content?.longDescription || content?.marketingDescription || content?.shortDescription || "",
-    price,
-    originalPrice,
-    category,
-    plcStatus: content?.plcStatus,
-    colors: [{ name: "Default", hex: "#1a1a2e" }],
-    configs: [{ ram: "—", storage: "—", price }],
-    specs,
-    images: productImages,
-    rating: 4.5,
-    reviewCount: 0,
-    inBox: [],
-  };
+  return mapItemToProduct(item, {
+    catalogName,
+    content: content
+      ? {
+          productNumber: content.productNumber,
+          name: content.name || item.longName || item.shortName || item.productNumber,
+          shortDescription: content.shortDescription || "",
+          longDescription: content.longDescription || content.marketingDescription || "",
+          specifications: content.specifications ?? [],
+          highlights: content.highlights,
+          category: content.category,
+          series: content.productLine,
+          plcStatus: content.plcStatus,
+        }
+      : undefined,
+    images: images?.map((img) => ({ url: img.url, type: img.type, width: img.width, height: img.height, altText: img.altText })),
+  });
 }
 
 async function fetchFromCatalog(
@@ -632,7 +512,8 @@ async function fetchFromCatalog(
       mapHPItemToProduct(
         item,
         contentMap.get(item.productNumber),
-        imagesMap.get(item.productNumber)
+        imagesMap.get(item.productNumber),
+        catalogName
       )
     );
 
@@ -686,14 +567,17 @@ export async function fetchCatalogSummary(opts: {
   catalogName?: string;
   pageNumber?: number;
   pageSize?: number;
-} = {}): Promise<{ products: Product[]; total: number }> {
+} = {}): Promise<{ products: Product[]; total: number; catalogReferences: Record<string, string> }> {
   const catalogNames = opts.catalogName ? [opts.catalogName] : catalogsForCategory(opts.category);
   const pageNumber = opts.pageNumber ?? 1;
   const pageSize = opts.pageSize ?? 1000;
+  // Split evenly across catalogs so e.g. "all products" isn't 100% Laptops
+  // just because Laptops happens to be first in catalogsForCategory().
+  const perCatalogSize = Math.ceil(pageSize / catalogNames.length);
 
   const summaryPromises = catalogNames.map(async (name) => {
     try {
-      const res = await getCatalogItems({ catalogName: name, pageNumber, pageSize });
+      const res = await getCatalogItems({ catalogName: name, pageNumber, pageSize: perCatalogSize });
       let items = res.items ?? [];
       if (!items.length && res.hierarchyNodes) {
         items = Object.values(res.hierarchyNodes).map((node) => ({
@@ -702,17 +586,27 @@ export async function fetchCatalogSummary(opts: {
           longName: node.hierarchyName,
         }));
       }
-      const products = items.map((item) => mapHPItemToProduct(item));
-      return { products, total: res.totalItemCount ?? res.totalResults ?? products.length };
+      const products = items.map((item) => mapHPItemToProduct(item, undefined, undefined, name));
+      return {
+        products,
+        total: res.totalItemCount ?? res.totalResults ?? products.length,
+        catalogReference: res.catalogReference,
+      };
     } catch {
-      return { products: [], total: 0 };
+      return { products: [], total: 0, catalogReference: undefined as string | undefined };
     }
   });
 
   const results = await Promise.all(summaryPromises);
+  const catalogReferences: Record<string, string> = {};
+  results.forEach((r, i) => {
+    if (r.catalogReference) catalogReferences[catalogNames[i]] = r.catalogReference;
+  });
+
   return {
     products: results.flatMap((r) => r.products).slice(0, pageSize),
     total: results.reduce((sum, r) => sum + r.total, 0),
+    catalogReferences,
   };
 }
 
