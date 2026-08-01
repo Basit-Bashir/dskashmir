@@ -15,7 +15,7 @@ interface Props {
 // Small, cross-category sample used only for "related products" and as a
 // last-resort slug lookup — the fast path below resolves the SKU straight
 // from the slug and never needs to scan the catalog.
-const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 64 }));
+const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 24 }));
 
 /** Memoized product resolver so generateMetadata and ProductPage share work */
 const resolveProduct = cache(async (slug: string): Promise<{ product: Product | null; related: Product[] }> => {
@@ -29,6 +29,11 @@ const resolveProduct = cache(async (slug: string): Promise<{ product: Product | 
     candidateSkus.push(cleanSlug.toUpperCase());
   }
 
+  // Kick off the catalog sample immediately, in parallel with SKU resolution
+  // below — it's needed for "related products" either way, and as a
+  // last-resort slug lookup, so there's no reason to wait on it sequentially.
+  const samplePromise = getCatalogSummary();
+
   let product: Product | null = null;
   for (const skuToTry of candidateSkus) {
     if (skuToTry.length < 3) continue;
@@ -36,10 +41,11 @@ const resolveProduct = cache(async (slug: string): Promise<{ product: Product | 
     if (product) break;
   }
 
+  const { products: sample } = await samplePromise;
+
   // Last resort: scan the (small) catalog sample for a matching slug/id.
   if (!product) {
-    const { products: catalog } = await getCatalogSummary();
-    const bySlug = catalog.find(
+    const bySlug = sample.find(
       (p) =>
         p.slug.toLowerCase() === cleanSlug.toLowerCase() ||
         p.id.toLowerCase() === cleanSlug.toLowerCase() ||
@@ -52,8 +58,6 @@ const resolveProduct = cache(async (slug: string): Promise<{ product: Product | 
       product = bySlug;
     }
   }
-
-  const { products: sample } = await getCatalogSummary();
 
   if (!product) {
     return { product: null, related: sample.slice(0, 4) };
