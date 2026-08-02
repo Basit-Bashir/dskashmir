@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Search, ShoppingBag, User, Menu, X, ArrowRight } from "lucide-react";
+import { Search, User, Menu, X, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCart } from "@/lib/context/CartContext";
 import type { Product } from "@/lib/products";
 import { fetchCatalogProductsClient } from "@/lib/hp-client";
-import { formatPrice } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "/", label: "Home" },
@@ -21,10 +19,8 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchProducts, setSearchProducts] = useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = useState(false);
-  const [productsLoaded, setProductsLoaded] = useState(false);
-  const { cartCount } = useCart();
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,26 +48,34 @@ export default function Navbar() {
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
-  // Lazily fetch the live catalog the first time search is opened
+  // Search the live catalog server-side as the user types — catalogs run
+  // into the thousands of items, so filtering a locally-fetched sample
+  // client-side rarely turns up a match.
   useEffect(() => {
-    if (searchOpen && !productsLoaded && !productsLoading) {
-      setProductsLoading(true);
-      fetchCatalogProductsClient({ catalogName: "Laptops", pageSize: 200 })
-        .then(({ products }) => {
-          setSearchProducts(products);
-          setProductsLoaded(true);
-        })
-        .finally(() => setProductsLoading(false));
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
     }
-  }, [searchOpen, productsLoaded, productsLoading]);
+    setSearching(true);
+    const handle = setTimeout(() => {
+      fetchCatalogProductsClient({ category: "all", searchPhrase: query, pageSize: 40 })
+        .then(({ products }) => {
+          // HP's backend search is fuzzy and matches on more than the name
+          // (specs, descriptions, etc). Narrow to products whose name
+          // actually contains what the user typed.
+          const nameMatches = products.filter((p) =>
+            p.name.toLowerCase().includes(query.toLowerCase())
+          );
+          setSearchResults(nameMatches.slice(0, 5));
+        })
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
 
-  const filteredProducts = searchQuery.trim() === ""
-    ? []
-    : searchProducts.filter(p =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.series.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase())
-    ).slice(0, 5);
+  const filteredProducts = searchResults;
 
   return (
     <>
@@ -115,22 +119,6 @@ export default function Navbar() {
               >
                 <Search size={18} strokeWidth={1.5} />
               </button>
-
-              <Link
-                href="/cart"
-                className="relative text-hp-black/70 hover:text-hp-blue
-                           transition-colors duration-200"
-                aria-label={`Cart (${cartCount} items)`}
-              >
-                <ShoppingBag size={18} strokeWidth={1.5} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-hp-blue
-                                   text-white text-[8px] font-medium rounded-full
-                                   flex items-center justify-center leading-none">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
 
               <button
                 className="hidden md:flex text-hp-black/70 hover:text-hp-blue
@@ -223,7 +211,7 @@ export default function Navbar() {
                 ) : (
                   <div>
                     <h3 className="eyebrow">Results ({filteredProducts.length})</h3>
-                    {productsLoading ? (
+                    {searching ? (
                       <div className="py-20 text-center">
                         <p className="text-sm text-hp-gray/60">Searching…</p>
                       </div>
@@ -245,14 +233,11 @@ export default function Navbar() {
                                 <h4 className="text-lg font-serif font-light text-hp-black group-hover:text-hp-blue transition-colors">{p.name}</h4>
                               </div>
                             </div>
-                            <div className="flex items-center gap-6">
-                              <span className="font-serif text-lg font-medium">{formatPrice(p.price)}</span>
-                              <ArrowRight size={18} strokeWidth={1.5} className="text-hp-blue opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all" />
-                            </div>
+                            <ArrowRight size={18} strokeWidth={1.5} className="text-hp-blue opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all flex-shrink-0" />
                           </Link>
                         ))}
                         <Link
-                          href={`/collections?search=${searchQuery}`}
+                          href={`/collections?search=${encodeURIComponent(searchQuery)}`}
                           onClick={() => setSearchOpen(false)}
                           className="inline-flex items-center gap-2 mt-10 text-[11px] tracking-widest uppercase text-hp-blue font-medium hover:gap-3 transition-all"
                         >

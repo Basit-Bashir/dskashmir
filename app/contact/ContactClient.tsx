@@ -1,7 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Mail, Phone, MapPin, ArrowRight } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
+import EnquiryForm from "@/components/contact/EnquiryForm";
 
 export default function ContactClient() {
   return (
@@ -56,48 +56,7 @@ export default function ContactClient() {
 
             {/* Form */}
             <div className="bg-white p-8 md:p-12 shadow-sm">
-              <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="text-[10px] tracking-widest uppercase font-medium text-hp-black mb-2 block">
-                      First Name
-                    </label>
-                    <input type="text" className="w-full border-b border-hp-light py-2 focus:border-hp-blue outline-none transition-colors font-light text-sm" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] tracking-widest uppercase font-medium text-hp-black mb-2 block">
-                      Last Name
-                    </label>
-                    <input type="text" className="w-full border-b border-hp-light py-2 focus:border-hp-blue outline-none transition-colors font-light text-sm" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] tracking-widest uppercase font-medium text-hp-black mb-2 block">
-                    Email Address
-                  </label>
-                  <input type="email" className="w-full border-b border-hp-light py-2 focus:border-hp-blue outline-none transition-colors font-light text-sm" />
-                </div>
-                <div>
-                  <label className="text-[10px] tracking-widest uppercase font-medium text-hp-black mb-2 block">
-                    Subject
-                  </label>
-                  <select className="w-full border-b border-hp-light py-2 focus:border-hp-blue outline-none transition-colors font-light text-sm bg-transparent">
-                    <option>General Inquiry</option>
-                    <option>Technical Support</option>
-                    <option>Order Status</option>
-                    <option>Press Inquiry</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] tracking-widest uppercase font-medium text-hp-black mb-2 block">
-                    Message
-                  </label>
-                  <textarea rows={4} className="w-full border-b border-hp-light py-2 focus:border-hp-blue outline-none transition-colors font-light text-sm resize-none" />
-                </div>
-                <button className="btn-primary w-full flex items-center justify-center gap-2 mt-4">
-                  Send Message <ArrowRight size={14} />
-                </button>
-              </form>
+              <EnquiryForm />
             </div>
           </div>
         </div>

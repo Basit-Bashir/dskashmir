@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, ChevronDown, Loader2, Search, X } from "lucide-react";
 import ProductCard from "@/components/product/ProductCard";
 import type { Product } from "@/lib/products";
@@ -22,8 +23,8 @@ const PRIMARY_CATEGORIES = [
 
 const SORT_OPTIONS = [
   { value: "featured", label: "Featured" },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc", label: "Price: High to Low" },
+  { value: "name-asc", label: "Name: A to Z" },
+  { value: "name-desc", label: "Name: Z to A" },
 ];
 
 interface Props {
@@ -37,8 +38,12 @@ export default function CollectionsClient({
   totalCount,
   initialCatalogReferences,
 }: Props) {
+  const searchParams = useSearchParams();
   const [activeCategory, setActiveCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  // Seeded synchronously from ?search= (the "View all results" link in the
+  // navbar search overlay) so the search effect below picks it up on the
+  // very first render — no extra mount effect / render pass needed.
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "");
   const [sortBy, setSortBy] = useState("featured");
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [total, setTotal] = useState(totalCount);
@@ -49,6 +54,7 @@ export default function CollectionsClient({
   // Seeded from the server-rendered initial page so "page 2" works even
   // before the user ever switches categories client-side.
   const [catalogRefs, setCatalogRefs] = useState<Record<string, string>>(initialCatalogReferences ?? {});
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const PAGE_SIZE = COLLECTIONS_PAGE_SIZE;
 
@@ -72,32 +78,59 @@ export default function CollectionsClient({
 
   function handleCategoryChange(key: string) {
     setActiveCategory(key);
-    loadPage(1, key);
+    // If a search is active, the search effect below re-runs against the
+    // new category instead of loading an unfiltered category page.
+    if (!searchQuery.trim()) loadPage(1, key);
   }
 
-  // Filter products by search query
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products;
-    const q = searchQuery.toLowerCase();
-    return products.filter((p) => {
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchSku = p.productNumber?.toLowerCase().includes(q) || p.id.toLowerCase().includes(q);
-      const matchSeries = p.series.toLowerCase().includes(q);
-      const matchSpec = p.specs.some(
-        (s) => s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q)
-      );
-      return matchName || matchSku || matchSeries || matchSpec;
-    });
-  }, [products, searchQuery]);
+  // Search is delegated to HP's backend (catalogs run into the thousands of
+  // items, so filtering only the current page client-side rarely finds a
+  // match). Debounced, and scoped to whichever category is active.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setSearchLoading(true);
+    const handle = setTimeout(() => {
+      const isAll = activeCategory === "all";
+      fetchCatalogProductsClient({
+        category: isAll ? "all" : undefined,
+        catalogName: isAll ? undefined : activeCategory,
+        searchPhrase: query,
+        pageSize: PAGE_SIZE,
+      })
+        .then(({ products: mapped, catalogReferences }) => {
+          // HP's backend search is fuzzy and matches on more than the name
+          // (specs, descriptions, etc). Narrow to products whose name
+          // actually contains what the user typed.
+          const nameMatches = mapped.filter((p) =>
+            p.name.toLowerCase().includes(query.toLowerCase())
+          );
+          setProducts(nameMatches);
+          setTotal(nameMatches.length);
+          setPage(1);
+          setCatalogRefs((prev) => ({ ...prev, ...catalogReferences }));
+        })
+        .finally(() => setSearchLoading(false));
+    }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, activeCategory]);
+
+  // Restore the normal category listing when the search box is cleared.
+  function clearSearch() {
+    setSearchQuery("");
+    loadPage(1, activeCategory);
+  }
 
   const displayProducts = useMemo(
     () =>
-      [...filteredProducts].sort((a, b) => {
-        if (sortBy === "price-asc") return a.price - b.price;
-        if (sortBy === "price-desc") return b.price - a.price;
+      [...products].sort((a, b) => {
+        if (sortBy === "name-asc") return a.name.localeCompare(b.name);
+        if (sortBy === "name-desc") return b.name.localeCompare(a.name);
         return 0;
       }),
-    [filteredProducts, sortBy]
+    [products, sortBy]
   );
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -132,13 +165,19 @@ export default function CollectionsClient({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchQuery(value);
+                  // Manually clearing the box (backspace/select-all-delete) should
+                  // restore category browsing, same as the X / "Clear Search" buttons.
+                  if (!value.trim() && searchQuery.trim()) loadPage(1, activeCategory);
+                }}
                 placeholder="Search by SKU, Product Title, Series, or Specs (e.g. Intel Core Ultra, 16GB)..."
                 className="w-full pl-10 pr-10 py-2.5 text-xs md:text-sm bg-white border border-hp-light focus:outline-none focus:border-hp-blue transition-colors rounded-sm shadow-xs"
               />
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery("")}
+                  onClick={clearSearch}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-hp-gray/60 hover:text-hp-black"
                 >
                   <X size={14} />
@@ -180,7 +219,7 @@ export default function CollectionsClient({
 
             {/* Sort Selector */}
             <div className="flex items-center gap-3 flex-shrink-0 self-end lg:self-auto">
-              {isPending && <Loader2 size={14} className="text-hp-blue animate-spin" />}
+              {(isPending || searchLoading) && <Loader2 size={14} className="text-hp-blue animate-spin" />}
               <SlidersHorizontal size={14} strokeWidth={1.5} className="text-hp-gray" />
               <div className="relative">
                 <select
@@ -210,7 +249,7 @@ export default function CollectionsClient({
         {/* Product Grid */}
         <div
           className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-8 transition-opacity duration-200 ${
-            isPending ? "opacity-40" : "opacity-100"
+            isPending || searchLoading ? "opacity-40" : "opacity-100"
           }`}
         >
           {displayProducts.map((product, i) => (
@@ -218,7 +257,7 @@ export default function CollectionsClient({
           ))}
         </div>
 
-        {displayProducts.length === 0 && !isPending && (
+        {displayProducts.length === 0 && !isPending && !searchLoading && (
           <div className="text-center py-20 bg-hp-cream/30 border border-hp-light rounded-sm mt-8">
             <p className="font-serif text-2xl font-light text-hp-black mb-2">No products found</p>
             <p className="text-xs text-hp-gray font-light">
@@ -226,7 +265,7 @@ export default function CollectionsClient({
             </p>
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery("")}
+                onClick={clearSearch}
                 className="mt-4 px-4 py-2 bg-hp-black text-white text-[10px] tracking-wider uppercase font-semibold rounded-sm"
               >
                 Clear Search Filter

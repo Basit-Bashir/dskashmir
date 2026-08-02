@@ -560,13 +560,18 @@ export async function fetchCatalogProducts(opts: {
 }
 
 /**
- * Fast, lightweight fetch of catalog items without retrieving full specs and images for every product.
+ * Fast, lightweight fetch of catalog items without retrieving full specs for
+ * every product. Pass `includeImages: true` to also batch-fetch thumbnails
+ * (cheap for the page-sized calls this is used for in the UI — skip it for
+ * bulk calls like the sitemap, where hundreds/thousands of images would be
+ * fetched and thrown away unused).
  */
 export async function fetchCatalogSummary(opts: {
   category?: string;
   catalogName?: string;
   pageNumber?: number;
   pageSize?: number;
+  includeImages?: boolean;
 } = {}): Promise<{ products: Product[]; total: number; catalogReferences: Record<string, string> }> {
   const catalogNames = opts.catalogName ? [opts.catalogName] : catalogsForCategory(opts.category);
   const pageNumber = opts.pageNumber ?? 1;
@@ -586,7 +591,26 @@ export async function fetchCatalogSummary(opts: {
           longName: node.hierarchyName,
         }));
       }
-      const products = items.map((item) => mapHPItemToProduct(item, undefined, undefined, name));
+
+      const imagesMap = new Map<string, HPImage[]>();
+      if (opts.includeImages && items.length > 0) {
+        const productNumbers = items.map((i) => i.productNumber);
+        const BATCH_SIZE = 50;
+        const imagesPromises: Promise<HPImagesResponse>[] = [];
+        for (let i = 0; i < productNumbers.length; i += BATCH_SIZE) {
+          imagesPromises.push(getProductImages(productNumbers.slice(i, i + BATCH_SIZE)));
+        }
+        const imagesResults = await Promise.allSettled(imagesPromises);
+        for (const r of imagesResults) {
+          if (r.status === "fulfilled" && r.value.products) {
+            for (const p of r.value.products) imagesMap.set(p.productNumber, p.images);
+          }
+        }
+      }
+
+      const products = items.map((item) =>
+        mapHPItemToProduct(item, undefined, imagesMap.get(item.productNumber), name)
+      );
       return {
         products,
         total: res.totalItemCount ?? res.totalResults ?? products.length,

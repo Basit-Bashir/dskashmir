@@ -15,7 +15,7 @@ interface Props {
 // Small, cross-category sample used only for "related products" and as a
 // last-resort slug lookup — the fast path below resolves the SKU straight
 // from the slug and never needs to scan the catalog.
-const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 24 }));
+const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 24, includeImages: true }));
 
 /** Memoized product resolver so generateMetadata and ProductPage share work */
 const resolveProduct = cache(async (slug: string): Promise<{ product: Product | null; related: Product[] }> => {

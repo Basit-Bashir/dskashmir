@@ -54,7 +54,15 @@ function normalizeGroupName(rawGroup?: string): string {
   if (g.includes("SECURITY")) return "Security & Privacy";
   if (g.includes("LOGISTICS") || g.includes("WEIGHT") || g.includes("DIMENSIONS")) return "Dimensions & Weight";
   if (g.includes("SUSTAINABILITY") || g.includes("ENVIRONMENT")) return "Sustainability & Materials";
-  if (g.includes("WARRANTY") || g.includes("SERVICE")) return "Warranty & Support";
+  if (
+    g.includes("WARRANTY") ||
+    g.includes("SERVICE") ||
+    g.includes("CARE PACK") ||
+    g.includes("REGISTRATION") ||
+    g.includes("COPYRIGHT")
+  ) {
+    return "Warranty & Support";
+  }
 
   return rawGroup.replace(/^PRISM_\s*/i, "").trim() || "General Specifications";
 }

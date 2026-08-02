@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Heart, Cpu, HardDrive, Monitor, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Product } from "@/lib/products";
-import { formatPrice, BADGE_STYLES, cn } from "@/lib/utils";
+import { BADGE_STYLES, cn } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -135,18 +135,8 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           </ul>
         </div>
 
-        {/* Price & Action Row */}
-        <div className="mt-4 pt-3 border-t border-hp-light flex items-center justify-between">
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-lg font-semibold text-hp-black">
-              {formatPrice(product.price)}
-            </span>
-            {product.originalPrice && (
-              <span className="text-xs text-hp-gray/50 line-through font-light">
-                {formatPrice(product.originalPrice)}
-              </span>
-            )}
-          </div>
+        {/* Action Row */}
+        <div className="mt-4 pt-3 border-t border-hp-light flex items-center justify-end">
           <Link
             href={`/product/${product.slug}`}
             className="text-[10px] tracking-[0.1em] uppercase font-semibold text-hp-blue hover:text-hp-blueDark transition-colors"

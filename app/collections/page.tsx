@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CollectionsClient from "./CollectionsClient";
@@ -20,16 +21,19 @@ export default async function CollectionsPage() {
   const { products, total, catalogReferences } = await fetchCatalogSummary({
     pageNumber: 1,
     pageSize: COLLECTIONS_PAGE_SIZE,
+    includeImages: true,
   });
 
   return (
     <>
       <Navbar />
-      <CollectionsClient
-        initialProducts={products}
-        totalCount={total}
-        initialCatalogReferences={catalogReferences}
-      />
+      <Suspense fallback={null}>
+        <CollectionsClient
+          initialProducts={products}
+          totalCount={total}
+          initialCatalogReferences={catalogReferences}
+        />
+      </Suspense>
       <Footer />
     </>
   );

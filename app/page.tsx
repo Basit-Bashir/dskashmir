@@ -10,6 +10,7 @@ import CategoryTiles from "@/components/sections/CategoryTiles";
 import EditorialBanner from "@/components/sections/EditorialBanner";
 import StoreLocation from "@/components/sections/StoreLocation";
 import { fetchCatalogProducts } from "@/lib/hp-api";
+import { seededShuffle } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "DSK — Premium Technology",
@@ -17,9 +18,18 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const { products } = await fetchCatalogProducts({ pageSize: 6 });
-  const BEST_SELLERS = products.slice(0, 3);
-  const NEW_ARRIVALS = products.slice(3, 6);
+  // Pull a broad pool across every catalog (pageSize 6 used to be split
+  // 1-per-catalog across 8 catalogs, so "New Arrivals" only ever had 3 items
+  // total left over after Best Sellers took the first 3).
+  const { products } = await fetchCatalogProducts({ pageSize: 48 });
+
+  // HP's catalog feed has no launch/arrival-date field to sort by, so
+  // "latest" is a daily-rotating curated pick instead: same seed for
+  // everyone visiting today, a different shuffle tomorrow.
+  const today = new Date().toISOString().slice(0, 10);
+  const shuffled = seededShuffle(products, today);
+  const BEST_SELLERS = shuffled.slice(0, 6);
+  const NEW_ARRIVALS = shuffled.slice(6, 14);
   // Prefer a laptop for the hero visual (matches the "Shop Laptops" CTA);
   // fall back to whichever product has an image.
   const heroProduct =

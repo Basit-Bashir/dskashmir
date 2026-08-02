@@ -3,15 +3,11 @@
 import { useState, useMemo } from "react";
 import {
   Heart,
-  ShoppingBag,
+  MessageSquare,
   Cpu,
   Monitor,
-  Mic,
-  ShieldCheck,
   HardDrive,
   Feather,
-  Award,
-  Leaf,
   FileText,
   Search,
   Sparkles,
@@ -23,39 +19,23 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import ProductCard from "@/components/product/ProductCard";
 import { Product } from "@/lib/products";
-import { formatPrice, BADGE_STYLES, cn } from "@/lib/utils";
-import { useCart } from "@/lib/context/CartContext";
+import { BADGE_STYLES, cn } from "@/lib/utils";
+import EnquiryModal from "@/components/contact/EnquiryModal";
 
 interface ProductPageClientProps {
   product: Product;
   related: Product[];
 }
 
-export default function ProductPageClient({ product, related }: ProductPageClientProps) {
-  const { addItem } = useCart();
+const WARRANTY_GROUP = "Warranty & Support";
 
+export default function ProductPageClient({ product, related }: ProductPageClientProps) {
   const [activeImg, setActiveImg] = useState(0);
   const [activeColor, setActiveColor] = useState(0);
   const [activeConfig, setActiveConfig] = useState(0);
-  const [activeTab, setActiveTab] = useState<"specs" | "highlights" | "inbox" | "docs">("specs");
-  const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"specs" | "details" | "warranty" | "highlights" | "inbox" | "docs">("specs");
   const [specQuery, setSpecQuery] = useState("");
-
-  const currentPrice = product.configs[activeConfig]?.price ?? product.price;
-
-  const handleAdd = () => {
-    addItem({
-      id: product.id,
-      name: product.name,
-      series: product.series,
-      config: `${product.configs[activeConfig]?.ram || "Std"} / ${product.configs[activeConfig]?.storage || "Std"} / ${product.colors[activeColor]?.name || "Default"}`,
-      price: currentPrice,
-      qty: qty,
-    });
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
-  };
+  const [enquiryOpen, setEnquiryOpen] = useState(false);
 
   // Quick stats extracted from specs. Word-boundary matching avoids false
   // positives like "Postcards" containing the substring "os".
@@ -74,10 +54,13 @@ export default function ProductPageClient({ product, related }: ProductPageClien
     };
   }, [product.specs]);
 
-  // Group specs by groupName
+  // Group specs by groupName. Warranty & Support gets its own tab (below)
+  // instead of sitting inside the general Specifications list.
   const groupedSpecs = useMemo(() => {
     const map = new Map<string, typeof product.specs>();
     for (const spec of product.specs) {
+      const group = spec.groupName || "General Specifications";
+      if (group === WARRANTY_GROUP) continue;
       if (
         specQuery &&
         !spec.label.toLowerCase().includes(specQuery.toLowerCase()) &&
@@ -85,25 +68,16 @@ export default function ProductPageClient({ product, related }: ProductPageClien
       ) {
         continue;
       }
-      const group = spec.groupName || "General Specifications";
       if (!map.has(group)) map.set(group, []);
       map.get(group)!.push(spec);
     }
     return map;
   }, [product.specs, specQuery]);
 
-  const getGroupIcon = (groupName: string) => {
-    const g = groupName.toLowerCase();
-    if (g.includes("processor") || g.includes("performance")) return Cpu;
-    if (g.includes("display") || g.includes("visuals")) return Monitor;
-    if (g.includes("audio") || g.includes("input") || g.includes("camera")) return Mic;
-    if (g.includes("security") || g.includes("privacy")) return ShieldCheck;
-    if (g.includes("operating") || g.includes("software")) return FileText;
-    if (g.includes("dimensions") || g.includes("weight")) return Feather;
-    if (g.includes("sustainability")) return Leaf;
-    if (g.includes("warranty")) return Award;
-    return HardDrive;
-  };
+  const warrantySpecs = useMemo(
+    () => product.specs.filter((s) => (s.groupName || "") === WARRANTY_GROUP),
+    [product.specs]
+  );
 
   return (
     <main className="pt-20 bg-white">
@@ -233,15 +207,7 @@ export default function ProductPageClient({ product, related }: ProductPageClien
                 )}
               </div>
 
-              <h1 className="font-serif text-3xl md:text-4xl font-light text-hp-black mb-3 leading-tight">{product.name}</h1>
-
-              {/* Price */}
-              <div className="flex items-baseline gap-4 mb-6">
-                <span className="font-serif text-4xl font-medium text-hp-black">{formatPrice(currentPrice)}</span>
-                {product.originalPrice && (
-                  <span className="text-lg text-hp-gray/50 line-through font-light">{formatPrice(product.originalPrice)}</span>
-                )}
-              </div>
+              <h1 className="font-serif text-3xl md:text-4xl font-light text-hp-black mb-6 leading-tight">{product.name}</h1>
 
               {/* Clean HP Description */}
               {product.description && (
@@ -314,35 +280,15 @@ export default function ProductPageClient({ product, related }: ProductPageClien
                 </div>
               )}
 
-              {/* Qty + Add to Cart */}
+              {/* Enquire */}
               <div className="flex gap-3 mb-4">
-                <div className="flex items-center border border-hp-light">
-                  <button
-                    onClick={() => setQty(Math.max(1, qty - 1))}
-                    className="w-10 h-12 text-hp-gray hover:text-hp-black transition-colors border-r border-hp-light"
-                    aria-label="Decrease quantity"
-                  >
-                    −
-                  </button>
-                  <span className="w-10 text-center text-sm font-medium">{qty}</span>
-                  <button
-                    onClick={() => setQty(qty + 1)}
-                    className="w-10 h-12 text-hp-gray hover:text-hp-black transition-colors border-l border-hp-light"
-                    aria-label="Increase quantity"
-                  >
-                    +
-                  </button>
-                </div>
                 <button
-                  onClick={handleAdd}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 text-[11px] tracking-[0.15em]",
-                    "uppercase font-medium py-3.5 transition-all duration-300",
-                    added ? "bg-green-600 text-white" : "bg-hp-blue text-white hover:bg-hp-blueDark"
-                  )}
+                  onClick={() => setEnquiryOpen(true)}
+                  className="flex-1 flex items-center justify-center gap-2 text-[11px] tracking-[0.15em]
+                             uppercase font-medium py-3.5 transition-all duration-300 bg-hp-blue text-white hover:bg-hp-blueDark"
                 >
-                  <ShoppingBag size={14} strokeWidth={1.5} />
-                  {added ? "Added to Cart!" : "Add to Cart"}
+                  <MessageSquare size={14} strokeWidth={1.5} />
+                  Enquire Now
                 </button>
               </div>
 
@@ -354,9 +300,9 @@ export default function ProductPageClient({ product, related }: ProductPageClien
 
           {/* Redesigned Specifications & Information Section */}
           <div className="mt-20 border-t border-hp-light pt-12">
-            <div className="flex items-center justify-between border-b border-hp-light pb-4 mb-8 flex-wrap gap-4">
-              <div className="flex gap-2">
-                {(["specs", "highlights", "inbox", "docs"] as const).map((tab) => {
+            <div className="flex items-end justify-between border-b border-hp-light mb-8 flex-wrap gap-4">
+              <div className="flex gap-6">
+                {(["specs", "details", "warranty", "highlights", "inbox", "docs"] as const).map((tab) => {
                   if (tab === "docs" && (!product.documents || product.documents.length === 0)) return null;
                   if (tab === "highlights" && (!product.highlights || product.highlights.length === 0)) return null;
                   return (
@@ -364,19 +310,23 @@ export default function ProductPageClient({ product, related }: ProductPageClien
                       key={tab}
                       onClick={() => setActiveTab(tab)}
                       className={cn(
-                        "px-5 py-2.5 text-[11px] tracking-[0.1em] uppercase font-medium transition-all duration-200 border",
+                        "pb-3 -mb-px text-[11px] tracking-[0.1em] uppercase font-semibold transition-colors duration-200 border-b-2",
                         activeTab === tab
-                          ? "bg-hp-black text-white border-hp-black"
-                          : "bg-hp-cream/50 text-hp-gray border-hp-light hover:text-hp-black hover:border-hp-gray"
+                          ? "text-hp-black border-hp-black"
+                          : "text-hp-gray border-transparent hover:text-hp-black"
                       )}
                     >
                       {tab === "specs"
                         ? "Specifications"
-                        : tab === "highlights"
-                          ? "Features & Overview"
-                          : tab === "inbox"
-                            ? "In the Box"
-                            : "Documents"}
+                        : tab === "details"
+                          ? "Details"
+                          : tab === "warranty"
+                            ? "Warranty"
+                            : tab === "highlights"
+                              ? "Features & Overview"
+                              : tab === "inbox"
+                                ? "In the Box"
+                                : "Documents"}
                     </button>
                   );
                 })}
@@ -384,7 +334,7 @@ export default function ProductPageClient({ product, related }: ProductPageClien
 
               {/* Spec search input when on specs tab */}
               {activeTab === "specs" && product.specs.length > 5 && (
-                <div className="relative min-w-[240px]">
+                <div className="relative min-w-[240px] mb-3">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-hp-gray" />
                   <input
                     type="text"
@@ -399,43 +349,84 @@ export default function ProductPageClient({ product, related }: ProductPageClien
 
             {/* TAB CONTENT: Specifications */}
             {activeTab === "specs" && (
-              <div className="space-y-8">
+              <div className="max-w-3xl space-y-6">
                 {groupedSpecs.size === 0 ? (
                   <p className="text-sm text-hp-gray font-light py-8 text-center">No specifications match "{specQuery}".</p>
                 ) : (
-                  Array.from(groupedSpecs.entries()).map(([groupTitle, specs]) => {
-                    const GroupIcon = getGroupIcon(groupTitle);
-                    return (
-                      <div key={groupTitle} className="border border-hp-light rounded-sm overflow-hidden bg-white">
-                        {/* Group Header */}
-                        <div className="bg-hp-cream/60 px-6 py-4 border-b border-hp-light flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <GroupIcon size={16} className="text-hp-blue" />
-                            <h3 className="text-xs tracking-[0.1em] uppercase font-semibold text-hp-black">{groupTitle}</h3>
-                          </div>
-                          <span className="text-[10px] text-hp-gray/70 uppercase tracking-wider">{specs.length} items</span>
-                        </div>
-
-                        {/* Specs Grid */}
-                        <div className="divide-y divide-hp-light/60">
-                          {specs.map(({ label, value }, idx) => (
-                            <div
-                              key={`${label}-${idx}`}
-                              className={cn(
-                                "grid grid-cols-1 md:grid-cols-[220px_1fr] px-6 py-3.5 text-sm transition-colors hover:bg-hp-cream/20",
-                                idx % 2 === 1 ? "bg-hp-cream/10" : "bg-white"
-                              )}
-                            >
-                              <span className="font-medium text-hp-black/90 pr-4 text-xs md:text-sm">{label}</span>
-                              <span className="font-light text-hp-gray text-xs md:text-sm leading-relaxed mt-0.5 md:mt-0">
-                                {value}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                  Array.from(groupedSpecs.entries()).map(([groupTitle, specs]) => (
+                    <div key={groupTitle}>
+                      {groupedSpecs.size > 1 && (
+                        <h4 className="text-[10px] tracking-[0.15em] uppercase text-hp-gray/60 font-semibold mb-2">
+                          {groupTitle}
+                        </h4>
+                      )}
+                      <div className="space-y-1.5">
+                        {specs.map(({ label, value }, idx) => (
+                          <p key={`${label}-${idx}`} className="text-sm leading-relaxed">
+                            <span className="font-semibold text-hp-black">{label}</span>
+                            <span className="text-hp-black">: </span>
+                            <span className="font-light text-hp-gray">{value}</span>
+                          </p>
+                        ))}
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: Details */}
+            {activeTab === "details" && (
+              <div className="max-w-3xl space-y-6">
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Brand", value: "HP" },
+                    { label: "Series", value: product.series },
+                    { label: "Category", value: product.category },
+                    { label: "Product Number", value: product.productNumber },
+                    { label: "Status", value: product.plcStatus },
+                  ]
+                    .filter((row) => row.value)
+                    .map((row) => (
+                      <p key={row.label} className="text-sm leading-relaxed">
+                        <span className="font-semibold text-hp-black">{row.label}</span>
+                        <span className="text-hp-black">: </span>
+                        <span className="font-light text-hp-gray capitalize">{row.value}</span>
+                      </p>
+                    ))}
+                </div>
+
+                {product.description && (
+                  <p className="text-sm leading-relaxed">
+                    <span className="font-semibold text-hp-black">Description</span>
+                    <span className="text-hp-black">: </span>
+                    <span className="font-light text-hp-gray">{product.description}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* TAB CONTENT: Warranty */}
+            {activeTab === "warranty" && (
+              <div className="max-w-3xl">
+                {warrantySpecs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {warrantySpecs.map(({ label, value }, idx) => (
+                      <p key={`${label}-${idx}`} className="text-sm leading-relaxed">
+                        <span className="font-semibold text-hp-black">{label}</span>
+                        <span className="text-hp-black">: </span>
+                        <span className="font-light text-hp-gray">{value}</span>
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-light text-hp-gray leading-relaxed">
+                    Standard HP manufacturer warranty applies to this product.{" "}
+                    <button onClick={() => setEnquiryOpen(true)} className="text-hp-blue underline font-medium">
+                      Contact us
+                    </button>{" "}
+                    for extended warranty and AMC options.
+                  </p>
                 )}
               </div>
             )}
@@ -524,6 +515,19 @@ export default function ProductPageClient({ product, related }: ProductPageClien
           )}
         </div>
       </div>
+
+      <EnquiryModal
+        isOpen={enquiryOpen}
+        onClose={() => setEnquiryOpen(false)}
+        productLabel={`${product.name}${product.productNumber ? ` (${product.productNumber})` : ""}`}
+        defaultMessage={`I'm interested in the ${product.name}${
+          product.productNumber ? ` (SKU: ${product.productNumber})` : ""
+        }${
+          product.configs.length > 1
+            ? `, ${product.configs[activeConfig]?.ram} / ${product.configs[activeConfig]?.storage} configuration`
+            : ""
+        }. Please share more details and pricing.`}
+      />
     </main>
   );
 }

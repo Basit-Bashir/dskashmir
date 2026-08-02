@@ -219,7 +219,7 @@ export async function fetchItemsByFacetValuesClient(opts: {
  */
 async function fetchFromCatalog(
   catalogName: string,
-  opts: { category?: string; pageNumber: number; pageSize: number; catalogReference?: string }
+  opts: { category?: string; pageNumber: number; pageSize: number; catalogReference?: string; searchPhrase?: string }
 ): Promise<{ products: Product[]; total: number; catalogReference?: string }> {
   const body: Record<string, unknown> = {
     catalogName: catalogName.toUpperCase(),
@@ -230,6 +230,10 @@ async function fetchFromCatalog(
     pageSize: opts.pageSize,
     requestor: REQUESTOR,
   };
+  // Delegate matching to HP's backend instead of sampling a page of the
+  // catalog and filtering client-side — catalogs run into the thousands of
+  // items, so a client-side filter over one page rarely finds a match.
+  if (opts.searchPhrase) body.generalSearchPhrase = opts.searchPhrase;
   // HP requires the catalogReference from the page-1 response to be echoed
   // back for pageNumber > 1, or it 400s.
   if (opts.pageNumber > 1 && opts.catalogReference) body.catalogReference = opts.catalogReference;
@@ -303,6 +307,7 @@ export async function fetchCatalogProductsClient(opts: {
   pageNumber?: number;
   pageSize?: number;
   catalogReferences?: Record<string, string>;
+  searchPhrase?: string;
 } = {}): Promise<{ products: Product[]; total: number; catalogReferences: Record<string, string> }> {
   const catalogNames = opts.catalogName ? [opts.catalogName] : catalogsForCategory(opts.category);
   const pageNumber = opts.pageNumber ?? 1;
@@ -316,6 +321,7 @@ export async function fetchCatalogProductsClient(opts: {
         pageNumber,
         pageSize: perCatalogSize,
         catalogReference: opts.catalogReferences?.[name],
+        searchPhrase: opts.searchPhrase,
       })
     )
   );
