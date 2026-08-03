@@ -236,8 +236,13 @@ export async function getProductContent(
         specifications: parsed.specifications,
         highlights: parsed.highlights,
         category: parsed.category,
+        subCategory: parsed.subCategory,
+        subBrand: parsed.subBrand,
         productLine: parsed.series,
         plcStatus: parsed.plcStatus,
+        status: parsed.status,
+        plcDates: parsed.plcDates,
+        productHierarchy: parsed.productHierarchy,
       };
     }
   );
@@ -438,16 +443,16 @@ export function mapHPItemToProduct(
     catalogName,
     content: content
       ? {
-          productNumber: content.productNumber,
-          name: content.name || item.longName || item.shortName || item.productNumber,
-          shortDescription: content.shortDescription || "",
-          longDescription: content.longDescription || content.marketingDescription || "",
-          specifications: content.specifications ?? [],
-          highlights: content.highlights,
-          category: content.category,
-          series: content.productLine,
-          plcStatus: content.plcStatus,
-        }
+        productNumber: content.productNumber,
+        name: content.name || item.longName || item.shortName || item.productNumber,
+        shortDescription: content.shortDescription || "",
+        longDescription: content.longDescription || content.marketingDescription || "",
+        specifications: content.specifications ?? [],
+        highlights: content.highlights,
+        category: content.category,
+        series: content.productLine,
+        plcStatus: content.plcStatus,
+      }
       : undefined,
     images: images?.map((img) => ({ url: img.url, type: img.type, width: img.width, height: img.height, altText: img.altText })),
   });

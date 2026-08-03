@@ -10,6 +10,18 @@ export type Product = {
   originalPrice?: number;
   badge?: "New" | "Best Seller" | "Limited" | "Sale" | string;
   plcStatus?: string;
+  status?: boolean;
+  plcDates?: Array<{
+    productAnnouncementDate?: string | null;
+    selectiveAvailabilityDate?: string | null;
+    generalAvailabilityDate?: string | null;
+    endOfSalesDate?: string | null;
+    endOfSupportDate?: string | null;
+    [key: string]: unknown;
+  }>;
+  subCategory?: string;
+  subBrand?: string;
+  productHierarchy?: Record<string, any>;
   category:
     | "ultrabook"
     | "business"

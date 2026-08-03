@@ -78,6 +78,34 @@ const IGNORED_TAGS = new Set([
 
 // ── /productcontent parsing ─────────────────────────────────────────────────
 
+export interface HierarchyLevelNode {
+  level?: number;
+  name?: string;
+  pmoid?: string;
+  number?: string;
+  [key: string]: unknown;
+}
+
+export interface HPProductHierarchy {
+  productType?: HierarchyLevelNode;
+  marketingCategory?: HierarchyLevelNode;
+  marketingSubCategory?: HierarchyLevelNode;
+  bigSeries?: HierarchyLevelNode;
+  smallSeries?: HierarchyLevelNode;
+  model?: HierarchyLevelNode;
+  sku?: HierarchyLevelNode;
+  [key: string]: unknown;
+}
+
+export interface PLCDateEntry {
+  productAnnouncementDate?: string | null;
+  selectiveAvailabilityDate?: string | null;
+  generalAvailabilityDate?: string | null;
+  endOfSalesDate?: string | null;
+  endOfSupportDate?: string | null;
+  [key: string]: unknown;
+}
+
 export interface ParsedSpec {
   name: string;
   value: string;
@@ -93,9 +121,14 @@ export interface ParsedContent {
   highlights?: string[];
   /** Raw facet text (e.g. "Laser printers", "Laptops") used to derive Product["category"]. */
   category?: string;
+  subCategory?: string;
+  subBrand?: string;
   /** Short marketing sub-brand/series text (e.g. "Essential", "OMEN"). */
   series?: string;
   plcStatus?: string;
+  status?: boolean;
+  plcDates?: PLCDateEntry[];
+  productHierarchy?: HPProductHierarchy;
 }
 
 /**
@@ -109,6 +142,8 @@ export function parseProductContentEntry(sku: string, prod: any): ParsedContent 
   let shortDescription = "";
   let longDescription = "";
   let category = "";
+  let subCategory = "";
+  let subBrand = "";
   let series = "";
   let seriesFallback = "";
 
@@ -132,12 +167,16 @@ export function parseProductContentEntry(sku: string, prod: any): ParsedContent 
 
       if (tag === "facet_prodtype" || tag === "filter_prodtype") {
         if (!category) category = cleanHPText(rawVal);
-      } else if (tag === "facet_subcategory" || tag === "facet_prodcat") {
-        if (!category) category = cleanHPText(rawVal);
+      } else if (tag === "facet_subcategory" || tag === "filter_subcategory" || tag === "facet_prodcat") {
+        const cleanedSub = cleanHPText(rawVal);
+        if (!subCategory) subCategory = cleanedSub;
+        if (!category) category = cleanedSub;
       }
 
-      if (tag === "facet_subbrand") {
-        series = cleanHPText(rawVal);
+      if (tag === "facet_subbrand" || tag === "filter_subbrand") {
+        const cleanedBrand = cleanHPText(rawVal);
+        if (!subBrand) subBrand = cleanedBrand;
+        if (!series) series = cleanedBrand;
       } else if (tag === "facet_seriesname" && !seriesFallback) {
         seriesFallback = cleanHPText(rawVal);
       }
@@ -189,6 +228,8 @@ export function parseProductContentEntry(sku: string, prod: any): ParsedContent 
     }
   }
 
+  const hierarchy = prod?.productHierarchy;
+
   return {
     productNumber: sku,
     name,
@@ -197,8 +238,13 @@ export function parseProductContentEntry(sku: string, prod: any): ParsedContent 
     specifications,
     highlights: highlights.length > 0 ? highlights : undefined,
     category: category || undefined,
+    subCategory: subCategory || hierarchy?.marketingSubCategory?.name || undefined,
+    subBrand: subBrand || undefined,
     series: series || seriesFallback || undefined,
     plcStatus: prod?.plcStatus,
+    status: prod?.status,
+    plcDates: prod?.plcDates,
+    productHierarchy: hierarchy,
   };
 }
 
@@ -411,6 +457,11 @@ export function mapItemToProduct(
     originalPrice,
     category,
     plcStatus: content?.plcStatus,
+    status: content?.status,
+    plcDates: content?.plcDates,
+    subCategory: content?.subCategory,
+    subBrand: content?.subBrand,
+    productHierarchy: content?.productHierarchy,
     colors: [{ name: "Default", hex: "#1a1a2e" }],
     configs: [{ ram: "—", storage: "—", price }],
     specs,
@@ -418,4 +469,93 @@ export function mapItemToProduct(
     highlights: content?.highlights && content.highlights.length > 0 ? content.highlights : undefined,
     inBox: [],
   };
+}
+
+export function extractSubcategory(product: {
+  chunks?: any;
+  productHierarchy?: HPProductHierarchy;
+  subCategory?: string;
+  category?: string;
+}): string | null {
+  if (product?.subCategory) return product.subCategory;
+  if (product?.chunks) {
+    const chunksArray: any[] = Array.isArray(product.chunks) ? product.chunks : Object.values(product.chunks);
+    for (const chunk of chunksArray) {
+      if (!chunk?.details) continue;
+      const detail = chunk.details.find(
+        (d: any) => d.tag === "facet_subcategory" || d.tag === "filter_subcategory"
+      );
+      if (detail?.value) return detail.value;
+    }
+  }
+  return product?.productHierarchy?.marketingSubCategory?.name || product?.category || null;
+}
+
+export function extractSubbrand(product: {
+  chunks?: any;
+  subBrand?: string;
+}): string | null {
+  if (product?.subBrand) return product.subBrand;
+  if (product?.chunks) {
+    const chunksArray: any[] = Array.isArray(product.chunks) ? product.chunks : Object.values(product.chunks);
+    for (const chunk of chunksArray) {
+      if (!chunk?.details) continue;
+      const detail = chunk.details.find(
+        (d: any) => d.tag === "facet_subbrand" || d.tag === "filter_subbrand"
+      );
+      if (detail?.value) return detail.value;
+    }
+  }
+  return null;
+}
+
+const FIVE_YEARS_AGO = new Date("2021-08-01");
+
+/**
+ * Filters HP API products to only include active products released within the last 5 years (since August 1, 2021).
+ *
+ * Rules:
+ * 1. Active Status: plcStatus === "Live" and status === true (or status true if plcStatus is Live).
+ * 2. Release Date: launchDate >= August 1, 2021.
+ * 3. Placeholder Check: ignore past endOfSalesDate unless plcStatus explicitly remains "Live".
+ */
+export function filterActiveRecentProducts<T extends {
+  plcStatus?: string;
+  status?: boolean;
+  plcDates?: PLCDateEntry[];
+}>(products: Record<string, T> | T[]): T[] {
+  const items = Array.isArray(products) ? products : Object.values(products);
+  const currentDateStr = new Date().toISOString().slice(0, 10);
+
+  return items.filter((product) => {
+    if (!product) return false;
+
+    // 1. Must be live and active
+    const isLive = product.plcStatus === "Live" && product.status === true;
+    if (!isLive) return false;
+
+    // 2. Extract release date
+    const plc = product.plcDates?.[0] || {};
+    const launchDateStr = plc.generalAvailabilityDate || plc.selectiveAvailabilityDate;
+    if (!launchDateStr) return false;
+
+    const launchDate = new Date(launchDateStr);
+    if (isNaN(launchDate.getTime()) || launchDate < FIVE_YEARS_AGO) return false;
+
+    // 3. Ignore placeholder records with past endOfSalesDate unless plcStatus explicitly remains "Live"
+    if (plc.endOfSalesDate) {
+      const endDateStr = String(plc.endOfSalesDate).slice(0, 10);
+      const isPast = endDateStr < currentDateStr;
+      if (isPast && product.plcStatus !== "Live") {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+export function isProductActiveAndRecent(productData?: any): boolean {
+  if (!productData) return false;
+  return filterActiveRecentProducts([productData]).length > 0;
 }
