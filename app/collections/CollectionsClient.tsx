@@ -57,7 +57,7 @@ const CATEGORY_SHOWCASES: Record<string, CategoryShowcase> = {
         id: "printers-home",
         title: "Printers for Home",
         subCategoryKey: "InkJet_Multifunction_Printers",
-        searchFilter: "DeskJet",
+        searchFilter: "Smart Tank",
         image: "https://hp.widen.net/content/ajoyilc3js/jpeg/ajoyilc3js.jpg?w=600&h=600&dpi=72",
       },
       {
@@ -258,7 +258,8 @@ export default function CollectionsClient({
   initialCatalogReferences,
 }: Props) {
   const searchParams = useSearchParams();
-  const [activeCategory, setActiveCategory] = useState("all");
+  const initialCat = searchParams.get("category");
+  const [activeCategory, setActiveCategory] = useState(() => initialCat ?? "all");
   const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "");
   const [sortBy, setSortBy] = useState("featured");
   const [products, setProducts] = useState<Product[]>(initialProducts);

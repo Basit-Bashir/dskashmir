@@ -13,6 +13,13 @@ import {
   mapItemToProduct,
   type ParsedContent,
 } from "./hp-mapping";
+import {
+  ALLOWED_PRINTER_SKUS,
+  isPrinterCatalog,
+  isPrinterProduct,
+  isAllowedPrinterSku,
+  sanitizeProducts,
+} from "./allowed-printer-skus";
 
 const BACKEND = process.env.HP_BACKEND_URL || "https://api.dskashmir.com/hp";
 const COUNTRY_CODE = "IN";
@@ -464,6 +471,66 @@ async function fetchFromCatalog(
   pageSize: number
 ): Promise<{ products: Product[]; total: number }> {
   try {
+    if (isPrinterCatalog(catalogName)) {
+      const start = (pageNumber - 1) * pageSize;
+      const targetSkus = ALLOWED_PRINTER_SKUS.slice(start, start + pageSize);
+      if (!targetSkus.length) return { products: [], total: ALLOWED_PRINTER_SKUS.length };
+
+      const BATCH_SIZE = 50;
+      const contentPromises: Promise<HPProductContentResponse>[] = [];
+      const imagesPromises: Promise<HPImagesResponse>[] = [];
+
+      for (let i = 0; i < targetSkus.length; i += BATCH_SIZE) {
+        const chunk = targetSkus.slice(i, i + BATCH_SIZE);
+        contentPromises.push(getProductContent(chunk));
+        imagesPromises.push(getProductImages(chunk));
+      }
+
+      const [contentResults, imagesResults] = await Promise.all([
+        Promise.allSettled(contentPromises),
+        Promise.allSettled(imagesPromises),
+      ]);
+
+      const contentMap = new Map<string, HPProductContent>();
+      for (const res of contentResults) {
+        if (res.status === "fulfilled" && res.value.products) {
+          for (const p of res.value.products) {
+            contentMap.set(p.productNumber, p);
+          }
+        }
+      }
+
+      const imagesMap = new Map<string, HPImage[]>();
+      for (const res of imagesResults) {
+        if (res.status === "fulfilled" && res.value.products) {
+          for (const p of res.value.products) {
+            imagesMap.set(p.productNumber, p.images);
+          }
+        }
+      }
+
+      const rawProducts = targetSkus.map((sku) => {
+        const item: HPCatalogItem = {
+          productNumber: sku,
+          shortName: contentMap.get(sku)?.name || sku,
+          longName: contentMap.get(sku)?.name || sku,
+        };
+        return mapHPItemToProduct(
+          item,
+          contentMap.get(sku),
+          imagesMap.get(sku),
+          catalogName
+        );
+      });
+
+      const products = sanitizeProducts(rawProducts, catalogName);
+
+      return {
+        products,
+        total: ALLOWED_PRINTER_SKUS.length,
+      };
+    }
+
     const catalogRes = await getCatalogItems({ catalogName, pageNumber, pageSize });
 
     let items = catalogRes.items ?? [];
@@ -513,7 +580,7 @@ async function fetchFromCatalog(
       }
     }
 
-    const products = items.map((item) =>
+    const rawProducts = items.map((item) =>
       mapHPItemToProduct(
         item,
         contentMap.get(item.productNumber),
@@ -521,6 +588,8 @@ async function fetchFromCatalog(
         catalogName
       )
     );
+
+    const products = sanitizeProducts(rawProducts, catalogName);
 
     return {
       products,
@@ -550,7 +619,11 @@ export async function fetchCatalogProducts(opts: {
   const pageSize = opts.pageSize ?? 1000;
 
   if (catalogNames.length === 1) {
-    return fetchFromCatalog(catalogNames[0], pageNumber, pageSize);
+    const res = await fetchFromCatalog(catalogNames[0], pageNumber, pageSize);
+    return {
+      products: sanitizeProducts(res.products, catalogNames[0]),
+      total: res.total,
+    };
   }
 
   const perCatalogSize = Math.ceil(pageSize / catalogNames.length);
@@ -558,8 +631,10 @@ export async function fetchCatalogProducts(opts: {
     catalogNames.map((name) => fetchFromCatalog(name, pageNumber, perCatalogSize))
   );
 
+  const allProducts = sanitizeProducts(results.flatMap((r) => r.products)).slice(0, pageSize);
+
   return {
-    products: results.flatMap((r) => r.products).slice(0, pageSize),
+    products: allProducts,
     total: results.reduce((sum, r) => sum + r.total, 0),
   };
 }
@@ -587,6 +662,29 @@ export async function fetchCatalogSummary(opts: {
 
   const summaryPromises = catalogNames.map(async (name) => {
     try {
+      if (isPrinterCatalog(name)) {
+        const targetSkus = ALLOWED_PRINTER_SKUS.slice((pageNumber - 1) * perCatalogSize, pageNumber * perCatalogSize);
+        const imagesMap = new Map<string, HPImage[]>();
+        if (opts.includeImages && targetSkus.length > 0) {
+          const imagesRes = await getProductImages(targetSkus).catch(() => ({ products: [] }));
+          if (imagesRes?.products) {
+            for (const p of imagesRes.products) imagesMap.set(p.productNumber, p.images);
+          }
+        }
+
+        const rawProducts = targetSkus.map((sku) =>
+          mapHPItemToProduct({ productNumber: sku }, undefined, imagesMap.get(sku), name)
+        );
+
+        const products = sanitizeProducts(rawProducts, name);
+
+        return {
+          products,
+          total: ALLOWED_PRINTER_SKUS.length,
+          catalogReference: undefined as string | undefined,
+        };
+      }
+
       const res = await getCatalogItems({ catalogName: name, pageNumber, pageSize: perCatalogSize });
       let items = res.items ?? [];
       if (!items.length && res.hierarchyNodes) {
@@ -613,9 +711,12 @@ export async function fetchCatalogSummary(opts: {
         }
       }
 
-      const products = items.map((item) =>
+      const rawProducts = items.map((item) =>
         mapHPItemToProduct(item, undefined, imagesMap.get(item.productNumber), name)
       );
+
+      const products = sanitizeProducts(rawProducts, name);
+
       return {
         products,
         total: res.totalItemCount ?? res.totalResults ?? products.length,
@@ -632,8 +733,10 @@ export async function fetchCatalogSummary(opts: {
     if (r.catalogReference) catalogReferences[catalogNames[i]] = r.catalogReference;
   });
 
+  const allProducts = sanitizeProducts(results.flatMap((r) => r.products)).slice(0, pageSize);
+
   return {
-    products: results.flatMap((r) => r.products).slice(0, pageSize),
+    products: allProducts,
     total: results.reduce((sum, r) => sum + r.total, 0),
     catalogReferences,
   };
@@ -683,6 +786,10 @@ export async function fetchProductByNumber(
     };
 
     const baseProduct = mapHPItemToProduct(item, content, images);
+
+    if (isPrinterProduct(baseProduct) && !isAllowedPrinterSku(baseProduct.productNumber || productNumber)) {
+      return null;
+    }
 
     // Enrich extra details if available
     const plcVal = plcRes.status === "fulfilled" ? (plcRes.value as any) : null;
