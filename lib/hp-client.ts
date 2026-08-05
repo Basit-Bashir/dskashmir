@@ -12,6 +12,11 @@ import {
   isPrinterCatalog,
   sanitizeProducts,
 } from "./allowed-printer-skus";
+import {
+  ALLOWED_SUPPLIES_SKUS,
+  isSuppliesCatalog,
+  sanitizeSuppliesProducts,
+} from "./allowed-supplies-skus";
 
 const COUNTRY_CODE = "IN";
 const LANGUAGE_CODE = "EN";
@@ -305,6 +310,84 @@ async function fetchFromCatalog(
     };
   }
 
+  if (isSuppliesCatalog(catalogName)) {
+    const isSearching = Boolean(opts.searchPhrase?.trim());
+
+    const skusToFetch = isSearching
+      ? ALLOWED_SUPPLIES_SKUS
+      : ALLOWED_SUPPLIES_SKUS.slice((opts.pageNumber - 1) * opts.pageSize, opts.pageNumber * opts.pageSize);
+
+    if (!skusToFetch.length) return { products: [], total: ALLOWED_SUPPLIES_SKUS.length };
+
+    const BATCH_SIZE = 50;
+    const contentPromises = [];
+    const imagesPromises = [];
+
+    for (let i = 0; i < skusToFetch.length; i += BATCH_SIZE) {
+      const chunk = skusToFetch.slice(i, i + BATCH_SIZE);
+      contentPromises.push(fetchProductContentClient(chunk));
+      imagesPromises.push(fetchProductImagesClient(chunk));
+    }
+
+    const [contentResults, imagesResults] = await Promise.all([
+      Promise.allSettled(contentPromises),
+      Promise.allSettled(imagesPromises),
+    ]);
+
+    const contentMap = new Map<string, ReturnType<typeof parseProductContentEntry>>();
+    for (const res of contentResults) {
+      if (res.status === "fulfilled" && res.value?.products) {
+        for (const [sku, prod] of Object.entries(res.value.products)) {
+          contentMap.set(sku, parseProductContentEntry(sku, prod));
+        }
+      }
+    }
+
+    const imagesMap = new Map<string, ReturnType<typeof parseImagesEntry>>();
+    for (const res of imagesResults) {
+      if (res.status === "fulfilled" && res.value?.products) {
+        for (const [sku, prod] of Object.entries(res.value.products)) {
+          imagesMap.set(sku, parseImagesEntry(prod));
+        }
+      }
+    }
+
+    let allMapped: Product[] = skusToFetch.map((sku) => {
+      const item: RawCatalogItem = {
+        productNumber: sku,
+        shortName: contentMap.get(sku)?.name || sku,
+        longName: contentMap.get(sku)?.name || sku,
+      };
+      return mapItemToProduct(item, {
+        catalogName,
+        content: contentMap.get(sku),
+        images: imagesMap.get(sku),
+      });
+    });
+
+    allMapped = sanitizeSuppliesProducts(allMapped, catalogName);
+
+    if (isSearching && opts.searchPhrase) {
+      const q = opts.searchPhrase.trim().toLowerCase();
+      allMapped = allMapped.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          (p.productNumber && p.productNumber.toLowerCase().includes(q))
+      );
+      const start = (opts.pageNumber - 1) * opts.pageSize;
+      return {
+        products: allMapped.slice(start, start + opts.pageSize),
+        total: allMapped.length,
+      };
+    }
+
+    return {
+      products: allMapped,
+      total: ALLOWED_SUPPLIES_SKUS.length,
+    };
+  }
+
   const body: Record<string, unknown> = {
     catalogName: catalogName.toUpperCase(),
     countryCode: COUNTRY_CODE,
@@ -370,7 +453,8 @@ async function fetchFromCatalog(
     })
   );
 
-  const sanitized = sanitizeProducts(mappedProducts, catalogName);
+  let sanitized = sanitizeProducts(mappedProducts, catalogName);
+  sanitized = sanitizeSuppliesProducts(sanitized, catalogName);
 
   return {
     products: sanitized,
@@ -417,7 +501,9 @@ export async function fetchCatalogProductsClient(opts: {
     if (r.catalogReference) catalogReferences[catalogNames[i]] = r.catalogReference;
   });
 
-  const allProducts = sanitizeProducts(results.flatMap((r) => r.products)).slice(0, pageSize);
+  let allProducts = results.flatMap((r) => r.products);
+  allProducts = sanitizeProducts(allProducts);
+  allProducts = sanitizeSuppliesProducts(allProducts).slice(0, pageSize);
 
   return {
     products: allProducts,
