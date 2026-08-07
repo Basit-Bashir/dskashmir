@@ -8,8 +8,9 @@ import HeroSection from "@/components/sections/HeroSection";
 import NewArrivalsRail from "@/components/sections/NewArrivalsRail";
 import CategoryTiles from "@/components/sections/CategoryTiles";
 import EditorialBanner from "@/components/sections/EditorialBanner";
+import HPBannersSection from "@/components/sections/HPBannersSection";
 import StoreLocation from "@/components/sections/StoreLocation";
-import { fetchCatalogProducts } from "@/lib/hp-api";
+import { fetchCatalogProducts, fetchProductByNumber } from "@/lib/hp-api";
 import { seededShuffle } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -18,31 +19,32 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  // Pull a broad pool across every catalog (pageSize 6 used to be split
-  // 1-per-catalog across 8 catalogs, so "New Arrivals" only ever had 3 items
-  // total left over after Best Sellers took the first 3).
-  const { products } = await fetchCatalogProducts({ pageSize: 48 });
+  const [{ products }, heroPrinter, laptopProductD8PZ9PA] = await Promise.all([
+    fetchCatalogProducts({ pageSize: 48 }),
+    fetchProductByNumber("3SJ03A").catch(() => null),
+    fetchProductByNumber("D8PZ9PA").catch(() => null),
+  ]);
 
-  // HP's catalog feed has no launch/arrival-date field to sort by, so
-  // "latest" is a daily-rotating curated pick instead: same seed for
-  // everyone visiting today, a different shuffle tomorrow.
   const today = new Date().toISOString().slice(0, 10);
   const shuffled = seededShuffle(products, today);
   const BEST_SELLERS = shuffled.slice(0, 6);
   const NEW_ARRIVALS = shuffled.slice(6, 14);
-  // Prefer a laptop for the hero visual (matches the "Shop Laptops" CTA);
-  // fall back to whichever product has an image.
-  const heroProduct =
-    products.find((p) => p.category === "ultrabook" && p.images.length > 0) ??
-    products.find((p) => p.images.length > 0);
+
+  const laptopImage =
+    laptopProductD8PZ9PA?.images?.[0] ||
+    "https://hp.widen.net/content/9iqnhnbc9a/png/9iqnhnbc9a.png?w=1659&h=1246&dpi=72&color=ffffff00";
+
+  const printerProduct =
+    heroPrinter ??
+    products.find((p) => p.category === "printer" && p.images?.length > 0);
 
   return (
     <>
       <Navbar />
 
       <main>
-        {/* Hero */}
-        <HeroSection heroImage={heroProduct?.images[0]} heroName={heroProduct?.name} />
+        {/* Hero featuring SKU 3SJ03A Printer Carousel */}
+        <HeroSection heroPrinter={heroPrinter} />
 
         {/* Trust bar */}
         <TrustBar />
@@ -51,7 +53,10 @@ export default async function HomePage() {
         <NewArrivalsRail products={NEW_ARRIVALS} />
 
         {/* Category tiles */}
-        <CategoryTiles />
+        <CategoryTiles
+          laptopImage={laptopImage}
+          printerImage={printerProduct?.images[0]}
+        />
 
         {/* Best Sellers */}
         <section className="section-pad py-14 md:py-16">
@@ -81,6 +86,9 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Official HP Campaign Banners */}
+        <HPBannersSection />
 
         {/* Editorial Banner */}
         <EditorialBanner />

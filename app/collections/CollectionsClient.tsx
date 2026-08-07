@@ -246,6 +246,33 @@ const CATEGORY_SHOWCASES: Record<string, CategoryShowcase> = {
   },
 };
 
+export function normalizeCategoryKey(rawCat?: string | null): string {
+  if (!rawCat) return "all";
+  const c = rawCat.toLowerCase().trim();
+  if (c === "all" || c === "all products") return "all";
+  if (c === "printer" || c === "printers" || c.includes("printer")) return "Printers";
+  if (
+    c === "laptop" ||
+    c === "laptops" ||
+    c === "ultrabook" ||
+    c === "business" ||
+    c === "creator" ||
+    c === "notebook"
+  ) {
+    return "Laptops";
+  }
+  if (c === "desktop" || c === "desktops") return "Desktops";
+  if (c === "workstation" || c === "workstations") return "Workstations";
+  if (c === "accessory" || c === "accessories" || c === "monitors" || c === "monitor") return "Accessories";
+  if (c === "storage") return "Storage";
+  if (c === "supplies" || c === "toner" || c === "ink" || c.includes("suppl")) return "Supplies";
+
+  const matched = PRIMARY_CATEGORIES.find(
+    (cat) => cat.key.toLowerCase() === c || cat.label.toLowerCase() === c
+  );
+  return matched ? matched.key : "all";
+}
+
 interface Props {
   initialProducts: Product[];
   totalCount: number;
@@ -258,9 +285,12 @@ export default function CollectionsClient({
   initialCatalogReferences,
 }: Props) {
   const searchParams = useSearchParams();
-  const initialCat = searchParams.get("category");
-  const [activeCategory, setActiveCategory] = useState(() => initialCat ?? "all");
-  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "");
+  const rawCat = searchParams.get("category");
+  const rawSearch = searchParams.get("search") || "";
+  const initialCat = normalizeCategoryKey(rawCat);
+
+  const [activeCategory, setActiveCategory] = useState(initialCat);
+  const [searchQuery, setSearchQuery] = useState(rawSearch);
   const [sortBy, setSortBy] = useState("featured");
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [total, setTotal] = useState(totalCount);
@@ -274,11 +304,12 @@ export default function CollectionsClient({
 
   function loadPage(newPage: number, categoryKey: string, customSearch?: string) {
     startTransition(async () => {
-      const isAll = categoryKey === "all";
+      const normalizedCat = normalizeCategoryKey(categoryKey);
+      const isAll = normalizedCat === "all";
       const { products: mapped, total: newTotal, catalogReferences } = await fetchCatalogProductsClient({
         category: isAll ? "all" : undefined,
-        catalogName: isAll ? undefined : categoryKey,
-        searchPhrase: customSearch || searchQuery || undefined,
+        catalogName: isAll ? undefined : normalizedCat,
+        searchPhrase: customSearch !== undefined ? customSearch : searchQuery || undefined,
         pageNumber: newPage,
         pageSize: PAGE_SIZE,
         catalogReferences: newPage > 1 ? catalogRefs : undefined,
@@ -291,10 +322,25 @@ export default function CollectionsClient({
     });
   }
 
+  // Sync category and search query from URL searchParams whenever URL parameters change
+  useEffect(() => {
+    const urlCat = normalizeCategoryKey(searchParams.get("category"));
+    const urlSearch = searchParams.get("search") || "";
+
+    setActiveCategory(urlCat);
+    setSearchQuery(urlSearch);
+
+    if (urlCat !== "all" || urlSearch) {
+      loadPage(1, urlCat, urlSearch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   function handleCategoryChange(key: string) {
-    setActiveCategory(key);
+    const normalizedKey = normalizeCategoryKey(key);
+    setActiveCategory(normalizedKey);
     setActiveSubFilter(null);
-    if (!searchQuery.trim()) loadPage(1, key);
+    loadPage(1, normalizedKey, searchQuery.trim() || undefined);
   }
 
   function handleSubcardClick(card: ShowcaseCard) {

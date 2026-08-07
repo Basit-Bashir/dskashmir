@@ -26,8 +26,9 @@ const config: Config = {
         clay:  { DEFAULT: "#E7CCBC", dark: "#8C5A3E" },
       },
       fontFamily: {
-        serif: ["var(--font-cormorant)", "Georgia", "serif"],
-        sans:  ["var(--font-dm-sans)",  "system-ui", "sans-serif"],
+        serif:   ["var(--font-lora)", "Lora", "Georgia", "serif"],
+        heading: ["var(--font-lora)", "Lora", "Georgia", "serif"],
+        sans:    ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       letterSpacing: {
         widest2: "0.25em",
