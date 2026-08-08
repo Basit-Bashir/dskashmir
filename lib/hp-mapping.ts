@@ -416,6 +416,24 @@ function fallbackPrice(productNumber: string, category: Product["category"]): { 
   return { price, originalPrice };
 }
 
+/**
+ * Rewrites HP Widen image URLs to use optimized dimensions.
+ * - Card/Grid Thumbnail: width = 400
+ * - Detail Page Hero: width = 1000
+ * Preserves full URL structure so original high-res asset remains accessible.
+ */
+export function optimizeWidenImageUrl(url: string, width: number = 400): string {
+  if (!url || !url.includes("hp.widen.net")) return url;
+  try {
+    const urlObj = new URL(url);
+    urlObj.searchParams.set("w", String(width));
+    urlObj.searchParams.delete("h");
+    return urlObj.toString();
+  } catch {
+    return url.replace(/w=\d+/, `w=${width}`).replace(/&h=\d+/, "");
+  }
+}
+
 export function mapItemToProduct(
   item: RawCatalogItem,
   opts: {
@@ -442,7 +460,9 @@ export function mapItemToProduct(
   const specs: Product["specs"] =
     content?.specifications?.map((s) => ({ label: s.name, value: s.value, groupName: s.groupName })) ?? [];
 
-  const productImages = images?.map((img) => img.url) ?? [];
+  const productImages = images?.map((img) => optimizeWidenImageUrl(img.url, 400)) ?? [];
+
+
 
   return {
     id: item.productNumber,

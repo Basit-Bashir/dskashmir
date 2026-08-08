@@ -15,7 +15,9 @@ interface Props {
 // Small, cross-category sample used only for "related products" and as a
 // last-resort slug lookup — the fast path below resolves the SKU straight
 // from the slug and never needs to scan the catalog.
-const getCatalogSummary = cache(() => fetchCatalogSummary({ pageSize: 24, includeImages: true }));
+const getCatalogSummary = cache(() =>
+  fetchCatalogSummary({ pageSize: 12, includeImages: false })
+);
 
 /** Memoized product resolver so generateMetadata and ProductPage share work */
 const resolveProduct = cache(async (slug: string): Promise<{ product: Product | null; related: Product[] }> => {
@@ -23,23 +25,31 @@ const resolveProduct = cache(async (slug: string): Promise<{ product: Product | 
 
   const candidateSkus: string[] = [];
   const embeddedSku = extractSkuFromSlug(cleanSlug);
-  if (embeddedSku) candidateSkus.push(embeddedSku);
-  // Back-compat: a bare SKU used directly as the slug (e.g. /product/58R10A)
-  if (!candidateSkus.includes(cleanSlug.toUpperCase())) {
+  if (embeddedSku) {
+    candidateSkus.push(embeddedSku);
+  } else if (cleanSlug.length >= 3 && !cleanSlug.includes("-")) {
     candidateSkus.push(cleanSlug.toUpperCase());
   }
+
 
   // Kick off the catalog sample immediately, in parallel with SKU resolution
   // below — it's needed for "related products" either way, and as a
   // last-resort slug lookup, so there's no reason to wait on it sequentially.
   const samplePromise = getCatalogSummary();
 
-  let product: Product | null = null;
-  for (const skuToTry of candidateSkus) {
-    if (skuToTry.length < 3) continue;
-    product = await fetchProductByNumber(skuToTry);
-    if (product) break;
-  }
+  // was:
+  // let product: Product | null = null;
+  // for (const skuToTry of candidateSkus) {
+  //   if (skuToTry.length < 3) continue;
+  //   product = await fetchProductByNumber(skuToTry);
+  //   if (product) break;
+  // }
+
+  const validCandidates = candidateSkus.filter((s) => s.length >= 3);
+  const results = await Promise.all(
+    validCandidates.map((sku) => fetchProductByNumber(sku).catch(() => null))
+  );
+  let product: Product | null = results.find((p): p is Product => Boolean(p)) ?? null;
 
   const { products: sample } = await samplePromise;
 
@@ -134,3 +144,5 @@ export default async function ProductPage({ params }: Props) {
     </>
   );
 }
+export const revalidate = 86400;      // 24h ISR
+export const dynamicParams = true;    // allow SKUs not pre-built

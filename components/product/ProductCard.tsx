@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Heart, Cpu, HardDrive, Monitor, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -69,12 +70,16 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
 
           {/* Live Image or Fallback */}
           {product.images && product.images.length > 0 ? (
-            <img
+            <Image
               src={product.images[0]}
               alt={product.name}
+              width={400}
+              height={300}
               className="w-auto h-auto max-h-[180px] object-contain group-hover:scale-[1.05] transition-transform duration-500"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           ) : (
+
             <div className="text-center p-4">
               <p className="font-serif text-2xl font-light text-hp-gray/40">{product.name}</p>
               <p className="text-[10px] tracking-widest uppercase text-hp-gray/30 mt-1">{product.series}</p>

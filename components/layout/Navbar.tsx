@@ -21,8 +21,6 @@ import { useCart } from "@/lib/context/CartContext";
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/collections", label: "Collections" },
-  { href: "/collections?category=Laptops", label: "Laptops" },
-  { href: "/collections?category=Printers", label: "Printers" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];

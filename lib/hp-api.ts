@@ -6,6 +6,7 @@
  */
 
 import type { Product } from "./products";
+import { unstable_cache } from "next/cache";
 import { catalogsForCategory } from "./hp-catalogs";
 import {
   parseProductContentEntry,
@@ -150,7 +151,7 @@ export interface HPDocumentItem {
   type?: string;
 }
 
-// ── Low-level caller ──────────────────────────────────────────────────────────
+// ── Low-level caller with Durable Data Caching ───────────────────────────────
 
 async function callHP<T>(
   endpoint: string,
@@ -161,7 +162,6 @@ async function callHP<T>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-    next: { revalidate: 3600 },
   });
 
   if (!res.ok) {
@@ -173,6 +173,25 @@ async function callHP<T>(
 
   return res.json() as Promise<T>;
 }
+
+const callHPDurableCache = unstable_cache(
+  async (endpoint: string, payloadString: string): Promise<any> => {
+    const payload = JSON.parse(payloadString);
+    return callHP<any>(endpoint, payload);
+  },
+  ["hermes-call-v2"],
+  { revalidate: 86400 }
+);
+
+async function callHPCached<T>(
+  endpoint: string,
+  payload: Record<string, unknown>
+): Promise<T> {
+  const payloadString = JSON.stringify(payload);
+  return callHPDurableCache(endpoint, payloadString) as Promise<T>;
+}
+
+
 
 // ── Public API functions ──────────────────────────────────────────────────────
 
@@ -206,7 +225,7 @@ export async function getCatalogItems(opts: {
   if (pageNumber > 1 && opts.catalogReference) {
     payload.catalogReference = opts.catalogReference;
   }
-  return callHP<HPCatalogResponse>("catalogitems", payload);
+  return callHPCached<HPCatalogResponse>("catalogitems", payload);
 }
 
 /**
@@ -237,7 +256,7 @@ export async function getProductContent(
     payload.reqContent = opts.reqContent;
   }
 
-  const data = await callHP<APIProductContentResponse>("productcontent", payload);
+  const data = await callHPCached<APIProductContentResponse>("productcontent", payload);
 
   const productsArray: HPProductContent[] = Object.entries(data.products || {}).map(
     ([skuKey, prod]) => {
@@ -272,7 +291,7 @@ export async function getCompanions(
   sku: string[],
   opts: { countryCode?: string; languageCode?: string } = {}
 ) {
-  return callHP("companions", {
+  return callHPCached("companions", {
     sku,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -308,7 +327,7 @@ export async function getProductImages(
     >;
   }
 
-  const data = await callHP<APIImagesResponse>("images", {
+  const data = await callHPCached<APIImagesResponse>("images", {
     sku,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -332,7 +351,7 @@ export async function getRichMedia(
   skus: string[],
   opts: { countryCode?: string; languageCode?: string; layoutName?: string } = {}
 ) {
-  return callHP("richmedia", {
+  return callHPCached("richmedia", {
     skus,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -349,7 +368,7 @@ export async function getItemPartnerDocs(
   skus: string[],
   opts: { countryCode?: string; languageCode?: string } = {}
 ) {
-  return callHP("itempartnerdocs", {
+  return callHPCached("itempartnerdocs", {
     skus,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -365,7 +384,7 @@ export async function getHierarchy(
   sku: string[],
   opts: { countryCode?: string; languageCode?: string; layoutName?: string } = {}
 ) {
-  return callHP("hierarchy", {
+  return callHPCached("hierarchy", {
     sku,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -382,7 +401,7 @@ export async function getPLC(
   sku: string[],
   opts: { countryCode?: string; languageCode?: string; layoutName?: string } = {}
 ) {
-  return callHP("plc", {
+  return callHPCached("plc", {
     sku,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -403,7 +422,7 @@ export async function getCatalogFacetFilters(opts: {
   facetIds?: string[];
 } = {}): Promise<HPFacetFiltersResponse> {
   const catalogName = opts.catalogName || "Laptops";
-  return callHP<HPFacetFiltersResponse>("catalogfacetfilters", {
+  return callHPCached<HPFacetFiltersResponse>("catalogfacetfilters", {
     catalogName,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -427,7 +446,7 @@ export async function getItemsByFacetValues(opts: {
   pageSize?: number;
 }): Promise<HPCatalogResponse> {
   const catalogName = opts.catalogName || "Laptops";
-  return callHP<HPCatalogResponse>("itemsbyfacetvalues", {
+  return callHPCached<HPCatalogResponse>("itemsbyfacetvalues", {
     catalogName,
     countryCode: opts.countryCode || COUNTRY_CODE,
     languageCode: opts.languageCode || LANGUAGE_CODE,
@@ -849,7 +868,7 @@ export async function fetchCatalogSummary(opts: {
  * - hierarchy
  * - plc
  */
-export async function fetchProductByNumber(
+async function fetchProductByNumberUncached(
   productNumber: string
 ): Promise<Product | null> {
   try {
@@ -941,3 +960,19 @@ export async function fetchProductByNumber(
     return null;
   }
 }
+
+const fetchProductByNumberDurableCache = unstable_cache(
+  async (cleanSku: string, country: string, language: string): Promise<Product | null> => {
+    return fetchProductByNumberUncached(cleanSku);
+  },
+  ["product-detail-v2"],
+  { revalidate: 86400 }
+);
+
+export async function fetchProductByNumber(
+  productNumber: string
+): Promise<Product | null> {
+  const cleanSku = productNumber.trim().toUpperCase();
+  return fetchProductByNumberDurableCache(cleanSku, COUNTRY_CODE, LANGUAGE_CODE);
+}
+

@@ -1,5 +1,19 @@
 import type { Metadata } from "next";
+import { Inter, Lora } from "next/font/google";
 import "./globals.css";
+import { CartProvider } from "@/lib/context/CartContext";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const lora = Lora({
+  subsets: ["latin"],
+  variable: "--font-lora",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://dsk-hp-store.vercel.app"),
@@ -46,14 +60,13 @@ export const metadata: Metadata = {
   },
 };
 
-import { CartProvider } from "@/lib/context/CartContext";
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${inter.variable} ${lora.variable}`}>
+      <body className="font-sans antialiased">
         <CartProvider>{children}</CartProvider>
       </body>
     </html>
   );
 }
+

@@ -38,3 +38,5 @@ export default async function CollectionsPage() {
     </>
   );
 }
+
+export const revalidate = 86400;
